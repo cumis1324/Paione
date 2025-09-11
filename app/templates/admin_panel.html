@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="id" class="h-full bg-gray-100">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Panel - Tambah Item</title>
+    <!-- Memuat Tailwind CSS dari CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://rsms.me/">
+    <link rel="stylesheet" href="https://rsms.me/inter/inter.css">
+    <style>
+        :root { font-family: 'Inter', sans-serif; }
+        @supports (font-variation-settings: normal) {
+            :root { font-family: 'Inter var', sans-serif; }
+        }
+    </style>
+</head>
+<body class="h-full">
+    <div class="min-h-full">
+        <!-- Navigasi -->
+        <nav class="bg-gray-800">
+            <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+                <div class="flex h-16 items-center justify-between">
+                    <div class="flex items-center">
+                        <div class="flex-shrink-0">
+                            <svg class="h-8 w-8 text-indigo-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 12h16.5m-16.5 3.75h16.5M3.75 19.5h16.5M5.625 4.5h12.75a1.875 1.875 0 0 1 0 3.75H5.625a1.875 1.875 0 0 1 0-3.75Z" />
+                            </svg>
+                        </div>
+                        <div class="ml-4">
+                            <h1 class="text-xl font-bold text-white">Admin Panel</h1>
+                        </div>
+                    </div>
+                    <div class="flex items-center">
+                        <span class="text-gray-300 mr-4">Selamat datang, <strong>{{ username }}</strong>!</span>
+                        <a href="/logout" class="rounded-md bg-red-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-red-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-600">Logout</a>
+                    </div>
+                </div>
+            </div>
+        </nav>
+
+        <!-- Header Halaman -->
+        <header class="bg-white shadow-sm">
+            <div class="mx-auto max-w-7xl px-4 py-4 sm:px-6 lg:px-8">
+                <h1 class="text-lg font-semibold leading-6 text-gray-900">Tambah Item Baru</h1>
+            </div>
+        </header>
+
+        <!-- Konten Utama -->
+        <main>
+            <div class="mx-auto max-w-7xl py-6 sm:px-6 lg:px-8">
+                <div class="bg-white p-8 rounded-lg shadow-md">
+                    <!-- Notifikasi -->
+                    <div id="notification" class="hidden mb-6 p-4 rounded-md"></div>
+
+                    <!-- Form Tambah Item -->
+                    <form id="addItemForm" class="space-y-6">
+                        <div>
+                            <label for="name" class="block text-sm font-medium leading-6 text-gray-900">Nama Item</label>
+                            <div class="mt-2">
+                                <input type="text" id="name" name="name" required class="block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6">
+                            </div>
+                        </div>
+
+                        <!-- --- PERUBAHAN TAMPILAN DROPDOWN --- -->
+                        <div class="grid grid-cols-1 gap-x-6 gap-y-8 sm:grid-cols-2 lg:grid-cols-4">
+                            <div>
+                                <label for="materialId" class="block text-sm font-medium leading-6 text-gray-900">BAHAN</label>
+                                <div class="mt-2 flex rounded-md shadow-sm">
+                                    <select id="materialId" name="materialId" required class="block w-full rounded-none rounded-l-md border-0 py-1.5 text-gray-900 ring-1 ring-inset ring-gray-300 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6">
+                                        <option value="">Memuat...</option>
+                                    </select>
+                                    <button type="button" data-type="material" data-select-id="materialId" title="Tambah Material Baru" class="addNewItemBtn relative -ml-px inline-flex items-center gap-x-1.5 rounded-r-md px-3 py-2 text-sm font-semibold text-gray-900 ring-1 ring-inset ring-gray-300 hover:bg-gray-50">+</button>
+                                </div>
+                            </div>
+                            <div>
+                                <label for="sizeId" class="block text-sm font-medium leading-6 text-gray-900">Ukuran</label>
+                                <div class="mt-2 flex rounded-md shadow-sm">
+                                    <select id="sizeId" name="sizeId" required class="block w-full rounded-none rounded-l-md border-0 py-1.5 text-gray-900 ring-1 ring-inset ring-gray-300 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6">
+                                        <option value="">Memuat...</option>
+                                    </select>
+                                    <button type="button" data-type="size" data-select-id="sizeId" title="Tambah Ukuran Baru" class="addNewItemBtn relative -ml-px inline-flex items-center gap-x-1.5 rounded-r-md px-3 py-2 text-sm font-semibold text-gray-900 ring-1 ring-inset ring-gray-300 hover:bg-gray-50">+</button>
+                                </div>
+                            </div>
+                            <div>
+                                <label for="brandId" class="block text-sm font-medium leading-6 text-gray-900">Merek</label>
+                                <div class="mt-2 flex rounded-md shadow-sm">
+                                    <select id="brandId" name="brandId" required class="block w-full rounded-none rounded-l-md border-0 py-1.5 text-gray-900 ring-1 ring-inset ring-gray-300 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6">
+                                        <option value="">Memuat...</option>
+                                    </select>
+                                    <button type="button" data-type="brand" data-select-id="brandId" title="Tambah Merek Baru" class="addNewItemBtn relative -ml-px inline-flex items-center gap-x-1.5 rounded-r-md px-3 py-2 text-sm font-semibold text-gray-900 ring-1 ring-inset ring-gray-300 hover:bg-gray-50">+</button>
+                                </div>
+                            </div>
+                            <div>
+                                <label for="modelId" class="block text-sm font-medium leading-6 text-gray-900">Model</label>
+                                <div class="mt-2 flex rounded-md shadow-sm">
+                                    <select id="modelId" name="modelId" required class="block w-full rounded-none rounded-l-md border-0 py-1.5 text-gray-900 ring-1 ring-inset ring-gray-300 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6">
+                                        <option value="">Memuat...</option>
+                                    </select>
+                                    <button type="button" data-type="model" data-select-id="modelId" title="Tambah Model Baru" class="addNewItemBtn relative -ml-px inline-flex items-center gap-x-1.5 rounded-r-md px-3 py-2 text-sm font-semibold text-gray-900 ring-1 ring-inset ring-gray-300 hover:bg-gray-50">+</button>
+                                </div>
+                            </div>
+                        </div>
+                        <!-- --- AKHIR PERUBAHAN --- -->
+
+                         <div>
+                            <label for="price" class="block text-sm font-medium leading-6 text-gray-900">Harga</label>
+                            <div class="relative mt-2 rounded-md shadow-sm">
+                                <div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
+                                    <span class="text-gray-500 sm:text-sm">Rp</span>
+                                </div>
+                                <input type="number" name="price" id="price" class="block w-full rounded-md border-0 py-1.5 pl-10 text-gray-900 ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6" placeholder="0.00" step="0.01" value="0.00">
+                            </div>
+                        </div>
+
+                        <div class="flex items-center justify-end gap-x-4">
+                            <button type="button" id="resetBtn" class="text-sm font-semibold leading-6 text-gray-900">Reset</button>
+                            <button type="submit" id="submitBtn" class="rounded-md bg-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600">
+                                <span id="btn-text">Simpan Item</span>
+                                <span id="btn-spinner" class="hidden">
+                                    <svg class="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                    </svg>
+                                </span>
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const form = document.getElementById('addItemForm');
+            const notification = document.getElementById('notification');
+            const submitBtn = document.getElementById('submitBtn');
+            const btnText = document.getElementById('btn-text');
+            const btnSpinner = document.getElementById('btn-spinner');
+            const resetBtn = document.getElementById('resetBtn');
+
+            // Fungsi untuk menampilkan notifikasi
+            function showNotification(message, type) {
+                notification.textContent = message;
+                notification.className = `p-4 rounded-md mb-6 ${type === 'success' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`;
+                notification.classList.remove('hidden');
+                setTimeout(() => {
+                    notification.classList.add('hidden');
+                }, 5000);
+            }
+
+            // Fungsi untuk mengisi dropdown
+            function populateSelect(selectId, data, valueField, textField) {
+                const select = document.getElementById(selectId);
+                select.innerHTML = `<option value="">-- Pilih salah satu --</option>`;
+                if (Array.isArray(data)) {
+                    data.forEach(item => {
+                        const option = document.createElement('option');
+                        option.value = item[valueField];
+                        option.textContent = item[textField];
+                        select.appendChild(option);
+                    });
+                } else {
+                    console.error(`Data for ${selectId} is not an array:`, data);
+                }
+            }
+
+            // Mengambil data untuk form saat halaman dimuat
+            async function fetchFormData() {
+                try {
+                    const response = await fetch('/api/form-data');
+                    if (!response.ok) {
+                        if (response.status === 401) {
+                            window.location.href = '/login';
+                        }
+                        throw new Error('Gagal memuat data form.');
+                    }
+                    const result = await response.json();
+                    if (result.status === 'success') {
+                        populateSelect('materialId', result.data.materials, 'Id', 'Name');
+                        populateSelect('sizeId', result.data.sizes, 'Id', 'Name');
+                        populateSelect('brandId', result.data.brands, 'Id', 'Name');
+                        populateSelect('modelId', result.data.models, 'Id', 'Name');
+                    } else {
+                        throw new Error(result.message || 'Gagal memuat data.');
+                    }
+                } catch (error) {
+                    showNotification(error.message, 'error');
+                    console.error("Fetch error:", error);
+                }
+            }
+
+            // Menangani submit form
+            form.addEventListener('submit', async function(event) {
+                event.preventDefault();
+                
+                submitBtn.disabled = true;
+                btnText.classList.add('hidden');
+                btnSpinner.classList.remove('hidden');
+
+                const formData = new FormData(form);
+                const data = {
+                    name: formData.get('name'),
+                    sizeId: formData.get('sizeId'),
+                    brandId: formData.get('brandId'),
+                    modelId: formData.get('modelId'),
+                    materialId: formData.get('materialId'),
+                    price: parseFloat(formData.get('price'))
+                };
+
+                try {
+                    const response = await fetch('/api/add-item', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(data)
+                    });
+                    const result = await response.json();
+                    if (response.ok && result.status === 'success') {
+                        showNotification(result.message, 'success');
+                        form.reset();
+                    } else {
+                        throw new Error(result.message || 'Terjadi kesalahan.');
+                    }
+                } catch (error) {
+                    showNotification(error.message, 'error');
+                } finally {
+                    submitBtn.disabled = false;
+                    btnText.classList.remove('hidden');
+                    btnSpinner.classList.add('hidden');
+                }
+            });
+            
+            resetBtn.addEventListener('click', () => {
+                form.reset();
+                notification.classList.add('hidden');
+            });
+
+            // --- PENAMBAHAN FUNGSI BARU ---
+            // Fungsi untuk menangani penambahan item lookup baru (size, brand, dll)
+            async function addNewLookupItem(itemType, selectId) {
+                const typeName = itemType.charAt(0).toUpperCase() + itemType.slice(1);
+                const itemName = prompt(`Masukkan nama ${typeName} baru:`);
+
+                if (itemName && itemName.trim() !== '') {
+                    try {
+                        const response = await fetch('/api/add-lookup-item', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ itemType: itemType, itemName: itemName.trim() })
+                        });
+
+                        const result = await response.json();
+
+                        if (response.ok && result.status === 'success') {
+                            const selectElement = document.getElementById(selectId);
+                            const newOption = document.createElement('option');
+                            newOption.value = result.newItem.Id;
+                            newOption.textContent = result.newItem.Name;
+                            selectElement.appendChild(newOption);
+                            selectElement.value = result.newItem.Id; // Otomatis pilih item baru
+                            showNotification(result.message, 'success');
+                        } else {
+                            throw new Error(result.message || 'Gagal menambahkan item baru.');
+                        }
+                    } catch (error) {
+                        showNotification(error.message, 'error');
+                    }
+                }
+            }
+
+            // Menambahkan event listener ke semua tombol '+'
+            document.querySelectorAll('.addNewItemBtn').forEach(button => {
+                button.addEventListener('click', function() {
+                    const itemType = this.dataset.type;
+                    const selectId = this.dataset.selectId;
+                    addNewLookupItem(itemType, selectId);
+                });
+            });
+            // --- AKHIR PENAMBAHAN ---
+
+            fetchFormData();
+        });
+    </script>
+</body>
+</html>

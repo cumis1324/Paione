@@ -1,0 +1,51 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+
+# Virtual environment
+venv/
+env/
+ENV/
+.venv/
+
+# Log files
+*.log
+
+# Environment files
+.env
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Executables
+*.exe
+
+# Text files hasil proses
+*.txt
+
+# Node modules (jika pakai npm/yarn)
+node_modules/
+
+# Misc
+*.bak
+*.swp
+*.swo
+
+# Ignore fonts build artifacts
+*.ttf
+*.woff
+*.woff2
+
+# Ignore compiled files
+*.pyc
+
+# Ignore manifest and cache
+manifest.json
+sw.js
+
+# Ignore IDE files
+.vscode/
+.idea/

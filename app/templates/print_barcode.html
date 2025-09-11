@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <title>Cetak Barcode - {{ item.Name }}</title>
+    <!-- JsBarcode library dari CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
+    <style>
+        @page {
+            size: 82mm 42mm;
+            margin: 0;
+        }
+        body {
+            font-family: 'Arial Narrow', Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            width: 82mm;
+            height: 42mm;
+            box-sizing: border-box;
+        }
+        .label-container {
+            width: 100%;
+            height: 100%;
+            padding: 3mm 4mm;
+            box-sizing: border-box;
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-start;
+        }
+        .barcode-section {
+            text-align: center;
+            line-height: 1;
+        }
+        /* Placeholder untuk barcode yang akan digenerate oleh JsBarcode */
+        .barcode-svg {
+            /*width: 100%;*/
+            height: 24mm; /* Tinggi barcode */
+        }
+        .barcode-number {
+           display: block;
+           font-size: 11pt;
+           font-weight: normal;
+           letter-spacing: 2px;
+           margin-top: -1.5mm; /* Tarik ke atas agar lebih dekat */
+        }
+        .details-section {
+            margin-top: 3mm;
+            display: flex;
+            justify-content: space-between;
+            font-size: 10pt;
+            line-height: 1.3;
+            text-transform: uppercase;
+        }
+        .details-grid {
+            display: grid;
+            grid-template-columns: auto auto;
+            column-gap: 6mm;
+        }
+        .details-grid span {
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            font-size: x-small;
+        }
+        .right-details {
+            text-align: right;
+        }
+        .size {
+            font-weight: bold;
+            font-size: 10pt;
+        }
+        .serial {
+            font-size: 10pt;
+        }
+    </style>
+</head>
+<body>
+    <div class="label-container">
+        <div class="barcode-section">
+            <svg id="barcode" class="barcode-svg"></svg>
+            <!-- Elemen SVG ini akan diisi oleh JsBarcode 
+            <div class="barcode-number">
+                <span>{{ item.Barcode[0] if item.Barcode else '' }}</span>
+                <span style="margin: 0 0.5em;">{{ item.Barcode[1:7] if item.Barcode else '' }}</span>
+                <span>{{ item.Barcode[7:] if item.Barcode else '' }}</span>
+            </div>-->
+        </div>
+
+        <div class="details-section">
+            <div class="details-grid">
+                <!-- Kolom 1 -->
+                <span>{{ item.Name }}</span>
+                <span>{{ item.BrandName }}</span>
+                
+                <!-- Kolom 2 -->
+                <span>{{ item.ModelName }}</span>
+                <span>{{ item.MaterialName }}</span>
+                
+            </div>
+            <div class="right-details">
+                <div class="size">
+                    {{ item.SizeName }}
+                </div>
+                <div class="serial">
+                    {{ item.Serial }}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener("DOMContentLoaded", function() {
+            try {
+                // Ambil nomor barcode dari data Flask
+                const barcodeValue = "{{ item.Barcode }}";
+                
+                // Generate barcode menggunakan JsBarcode
+                JsBarcode("#barcode", barcodeValue, {
+                    format: "EAN13",
+                    displayValue: true, // Kita sembunyikan teks default karena kita buat manual
+                    margin: 0,
+                    height: 60, // Ketinggian bar dalam piksel
+                    width: 2.4 // Lebar bar dalam piksel
+                });
+
+                // Panggil fungsi cetak setelah barcode berhasil digenerate
+                window.print();
+            } catch (e) {
+                // Tangani jika barcode tidak valid
+                console.error("Error generating barcode:", e);
+                document.body.innerHTML = "Error: Barcode tidak valid atau tidak dapat digenerate.";
+            }
+        });
+    </script>
+</body>
+</html>
