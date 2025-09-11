@@ -76,11 +76,12 @@ function renderReportContent() {
             <input type="date" id="end-date-input" class="rounded-md border-gray-300 shadow-sm">
             <button id="fetch-custom-range" class="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700">Tampilkan</button>
         </div>` : '';
-        const timeSeriesChartContainer = analyticsState.mode !== 'daily' ? `
+    // Selalu tampilkan chart container
+    const timeSeriesChartContainer = `
         <div id="timeseries-chart-container" class="bg-white p-6 rounded-lg shadow col-span-1 lg:col-span-2">
             <div style="height: 350px;"><canvas id="timeSeriesChart"></canvas></div>
         </div>
-    ` : '';
+    `;
 
     container.innerHTML = `
         <div class="flex items-center justify-center mb-6">
@@ -91,28 +92,24 @@ function renderReportContent() {
         ${customDateRangePicker}
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <div id="summary-card" class="bg-white p-6 rounded-lg shadow col-span-1 lg:col-span-2"></div>
-            
-            ${timeSeriesChartContainer} 
-            
+            ${timeSeriesChartContainer}
             <div id="sales-chart-container" class="bg-white p-6 rounded-lg shadow"><div style="height: 350px;"><canvas id="salesComparisonChart"></canvas></div></div>
             <div id="quantity-chart-container" class="bg-white p-6 rounded-lg shadow"><div style="height: 350px;"><canvas id="quantityComparisonChart"></canvas></div></div>
             <div id="payment-chart-container" class="bg-white p-6 rounded-lg shadow col-span-1 lg:col-span-2"><div style="height: 350px;"><canvas id="paymentComparisonChart"></canvas></div></div>
             <div id="recent-activity-card" class="bg-white p-6 rounded-lg shadow col-span-1 lg:col-span-2"></div>
         </div>`;
-    
     updatePeriodDisplay();
     if (analyticsState.mode !== 'custom') {
         fetchDataForPeriod();
     }
     startRealtimeUpdates();
 }
-
 function renderSummaryCard(data) {
     const container = document.getElementById('summary-card');
     if (!container) return;
     const totals = data.total || {};
     container.innerHTML = `
-        <h3 class="text-sm font-medium text-gray-500">Ringkasan</h3>
+        <h3 class="text-sm font-medium text-gray-500">Ringkasan Penjualan Toko</h3>
         <div class="mt-2 flex flex-col md:flex-row items-baseline gap-x-4">
             <p class="text-3xl font-bold text-gray-900">${formatRupiah(totals.total_penjualan || 0)}</p>
             <p class="text-lg font-medium text-gray-600">(${(totals.total_lusin || 0)} Lusin)</p>
@@ -277,9 +274,15 @@ async function fetchDataForPeriod(isCustom = false) {
         if (result.status === 'success') {
             renderSummaryCard(result.data);
             renderRecentActivity(result.data);
-            renderComparisonChart(start, end);
-            if (analyticsState.mode !== 'daily') {
-                renderTimeSeriesChart(start, end);
+            renderComparisonChart(start, end, analyticsState.mode);
+
+            // --- MODIFIKASI DI SINI ---
+            if (analyticsState.mode === 'daily') {
+                // Ambil timeseries per jam dari API khusus
+                const timeseriesResult = await api.getAnalyticsTimeseriesHourly(start);
+                renderTimeSeriesChart(start, end, analyticsState.mode, timeseriesResult);
+            } else {
+                renderTimeSeriesChart(start, end, analyticsState.mode, result.data);
             }
         } else {
             throw new Error(result.message);
@@ -288,7 +291,6 @@ async function fetchDataForPeriod(isCustom = false) {
         showNotification(`Gagal memuat data: ${error.message}`, 'error');
     }
 }
-
 export function stopRealtimeUpdates() {
     if (realtimeIntervalId) clearInterval(realtimeIntervalId);
     realtimeIntervalId = null;

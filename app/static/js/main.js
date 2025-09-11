@@ -215,5 +215,15 @@ document.addEventListener('DOMContentLoaded', () => {
             multipayrollDropdownIcon.classList.toggle('rotate-180');
         });
     }
+    const gudangDropdownBtn = document.getElementById('gudang-dropdown-btn');
+    const gudangDropdownMenu = document.getElementById('gudang-dropdown-menu');
+    const gudangDropdownIcon = document.getElementById('gudang-dropdown-icon');
+
+    if (gudangDropdownBtn) {
+        gudangDropdownBtn.addEventListener('click', () => {
+            gudangDropdownMenu.classList.toggle('hidden');
+            gudangDropdownIcon.classList.toggle('rotate-180');
+        });
+    }
     initializeApp();
 });

@@ -13,9 +13,24 @@ from app.utils import calculate_ean13_checksum
 from .auth import login_required
 import openpyxl
 import json
-import crcmod
+import pyodbc
 
 api_bp = Blueprint('api', __name__)
+def get_sql_server_connection():
+    """Membuat dan mengembalikan koneksi ke database SQL Server."""
+    try:
+        conn = pyodbc.connect(
+            'DRIVER={' + os.getenv('SQL_SERVER_DRIVER') + '};'
+            'SERVER=' + os.getenv('SQL_SERVER_HOST') + ';'
+            'DATABASE=' + os.getenv('SQL_SERVER_DB') + ';'
+            'UID=' + os.getenv('SQL_SERVER_USER') + ';'
+            'PWD=' + os.getenv('SQL_SERVER_PASSWORD') + ';'
+        )
+        return conn
+    except pyodbc.Error as ex:
+        # Log error atau tangani sesuai kebutuhan
+        print(f"Gagal terhubung ke SQL Server: {ex}")
+        return None
 
 # --- Decorator untuk Izin Akses ---
 def permission_required(permission):
@@ -40,10 +55,14 @@ permission_map = {
     'penerimaan': {'R': 'RTk'},
     'piutang': {'R': 'RTk'},
     'analytics': {'R': 'RA'},
+    'factory-analytics': {'R': 'RA'},
     'multipayroll': {'R': 'RA'},
     'payroll-checksum': {'R': 'RA'},
     'packinglist-barcode': {'R': 'RPL', 'W': 'WPL'},
-    'packinglist-riwayat': {'R': 'RPL'}
+    'packinglist-riwayat': {'R': 'RPL'},
+    'gudang': {'R': 'RGudang'},
+    'stock-in': {'R': 'RGudang', 'W': 'WStok'},
+    'stock-out': {'R': 'RGudang', 'W': 'WStok'}
 }
 
 # --- Rute-rute API ---
@@ -69,9 +88,91 @@ def get_data(data_type):
     limit = int(request.args.get('limit', 50))
     offset = (page - 1) * limit
 
+    if data_type in ['packinglist-barcode', 'packinglist-riwayat']:
+        conn_sql = get_sql_server_connection()
+        if not conn_sql:
+            return jsonify({"status": "error", "message": "Gagal terhubung ke database Packing List."}), 503
+        
+        try:
+            cursor = conn_sql.cursor()
+            params = []
+            where_clause = ""
+            
+            if data_type == 'packinglist-barcode':
+                query_base = "FROM dbo.ViewBarcodeSystemCMT"
+                query_fields = "Barcode, Item, Color, Size"
+                order_by_clause = "ORDER BY Barcode"
+                count_field = "Barcode"
+                if search_query:
+                    where_clause = " WHERE Barcode LIKE ? OR Item LIKE ? OR Size LIKE ?"
+                    params.extend([f'%{search_query}%', f'%{search_query}%', f'%{search_query}%'])
+            
+            elif data_type == 'packinglist-riwayat':
+                query_base = """
+                    FROM dbo.PackListCmt p
+                    LEFT JOIN dbo.ViewProdNoCustomerExt c ON p.CustomerID = c.CustomerID
+                """
+                query_fields = "p.IDNo, c.Customer AS CustomerName, p.DONo, p.WONo"
+                # --- PERBAIKAN DI SINI: Hapus alias 'p.' dari ORDER BY ---
+                order_by_clause = "ORDER BY IDNo DESC"
+                # --- AKHIR PERBAIKAN ---
+                count_field = "DISTINCT p.IDNo"
+                if search_query:
+                    where_clause = " WHERE p.WONo LIKE ? OR p.DONo LIKE ? OR c.Customer LIKE ?"
+                    params.extend([f'%{search_query}%', f'%{search_query}%', f'%{search_query}%'])
+
+            # 1. Query hitung total baris (tidak berubah)
+            count_query = f"SELECT COUNT({count_field}) {query_base} {where_clause}"
+            cursor.execute(count_query, params)
+            total_records = cursor.fetchone()[0]
+
+            # 2. Query untuk mendapatkan data menggunakan ROW_NUMBER()
+            start_row = offset + 1
+            end_row = offset + limit
+            
+            if data_type == 'packinglist-riwayat':
+                 final_fields = "IDNo, CustomerName, DONo, WONo" # Nama kolom setelah alias
+                 query = f"""
+                    WITH DistinctResults AS (
+                        SELECT DISTINCT {query_fields}
+                        {query_base} {where_clause}
+                    )
+                    , NumberedResults AS (
+                        SELECT *, ROW_NUMBER() OVER ({order_by_clause}) as row_num
+                        FROM DistinctResults
+                    )
+                    SELECT {final_fields}
+                    FROM NumberedResults
+                    WHERE row_num BETWEEN ? AND ?;
+                """
+            else: # Untuk barcode, query lebih sederhana
+                final_fields = query_fields
+                query = f"""
+                    WITH NumberedResults AS (
+                        SELECT {query_fields}, ROW_NUMBER() OVER ({order_by_clause}) as row_num
+                        {query_base} {where_clause}
+                    )
+                    SELECT {final_fields}
+                    FROM NumberedResults
+                    WHERE row_num BETWEEN ? AND ?;
+                """
+
+            params.extend([start_row, end_row])
+            cursor.execute(query, params)
+            
+            columns = [column[0] for column in cursor.description]
+            results = [dict(zip(columns, row)) for row in cursor.fetchall()]
+            
+            return jsonify({"status": "success", "data": results, "total_records": total_records})
+
+        except pyodbc.Error as ex:
+            return jsonify({"status": "error", "message": f"Database error: {str(ex)}"}), 500
+        finally:
+            if conn_sql:
+                conn_sql.close()
+
     if sort_order.upper() not in ['ASC', 'DESC']:
         sort_order = 'DESC'
-
     try:
         cur = mysql.connection.cursor()
         params = []
@@ -163,72 +264,6 @@ def get_data(data_type):
             
             count_query = "SELECT COUNT(*) as total " + base_query
             query = select_fields + base_query + f" ORDER BY {sort_by} {sort_order} LIMIT %s OFFSET %s"
-        
-        elif data_type == 'packinglist-barcode':
-            base_url = os.getenv('SQL_SERVER_API_BASE_URL')
-            if not base_url:
-                return jsonify({"status": "error", "message": "URL API Packing List tidak dikonfigurasi."}), 500
-            
-            try:
-                # Ambil semua data dari endpoint eksternal
-                response = requests.get(f"{base_url}/packinglist", timeout=10)
-                response.raise_for_status()
-                all_data = response.json()
-                
-                # Implementasi search sederhana di sisi server Flask
-                if search_query:
-                    search_term = search_query.lower()
-                    filtered_data = [
-                        item for item in all_data 
-                        if search_term in str(item.get('Barcode', '')).lower() or
-                           search_term in str(item.get('Item', '')).lower() or
-                           search_term in str(item.get('Size', '')).lower()
-                    ]
-                else:
-                    filtered_data = all_data
-
-                # Implementasi pagination sederhana
-                total_records = len(filtered_data)
-                paginated_data = filtered_data[offset : offset + limit]
-
-                return jsonify({"status": "success", "data": paginated_data, "total_records": total_records})
-
-            except requests.exceptions.RequestException as e:
-                return jsonify({"status": "error", "message": f"Gagal mengambil data dari server Packing List: {e}"}), 503
-        # --- AKHIR TAMBAHAN ---
-        elif data_type == 'packinglist-riwayat':
-            base_url = os.getenv('SQL_SERVER_API_BASE_URL')
-            if not base_url:
-                return jsonify({"status": "error", "message": "URL API Packing List tidak dikonfigurasi."}), 500
-            
-            try:
-                # Panggil endpoint history di server eksternal
-                response = requests.get(f"{base_url}/packinglist/history", timeout=10)
-                response.raise_for_status()
-                all_data = response.json()
-                
-                # Implementasi search sederhana
-                if search_query:
-                    search_term = search_query.lower()
-                    filtered_data = [
-                        item for item in all_data 
-                        if search_term in str(item.get('WONo', '')).lower() or
-                           search_term in str(item.get('DONo', '')).lower() or
-                           search_term in str(item.get('CustomerName', '')).lower()
-                    ]
-                else:
-                    filtered_data = all_data
-
-                # Implementasi pagination
-                total_records = len(filtered_data)
-                paginated_data = filtered_data[offset : offset + limit]
-
-                return jsonify({"status": "success", "data": paginated_data, "total_records": total_records})
-
-            except requests.exceptions.RequestException as e:
-                return jsonify({"status": "error", "message": f"Gagal mengambil data dari server Packing List: {e}"}), 503
-        # --- AKHIR TAMBAHAN ---
-
         elif data_type == 'items':
             valid_sort_columns = ['Barcode', 'Name', 'BahanName', 'SizeName', 'BrandName', 'ModelName', 'Price', 'Serial', 'CreatedDate']
             if sort_by not in valid_sort_columns:
@@ -492,44 +527,12 @@ def get_form_data():
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 500
 
-# @api_bp.route('/add-item', methods=['POST'])
-# @login_required
-# @permission_required('WNB') 
-# def add_item():
-#     data = request.get_json()
-#     client_info = data.get('clientInfo', 'Unknown Client')
-#     now = datetime.now()
-#     base_10_digits = now.strftime('%y%m%d%H%S')
-#     milli_2_digits = str(now.microsecond // 10000).zfill(2)
-#     base_12_digits = base_10_digits + milli_2_digits
-#     check_digit = calculate_ean13_checksum(base_12_digits)
-#     barcode = base_12_digits + check_digit
-#     item_id, user_id = str(uuid.uuid4()), session['user_id']
-#     current_time = now.strftime('%Y-%m-%d %H:%M:%S')
-#     new_item = { 'Id': item_id, 'Barcode': barcode, 'Name': data.get('name'), 'MaterialId': data.get('materialId'), 'SizeId': data.get('sizeId'), 'IsActive': 1, 'CreatedById': user_id, 'CreatedDate': current_time, 'ModifiedById': user_id, 'ModifiedDate': current_time, 'BrandId': data.get('brandId'), 'ModelId': data.get('modelId'), 'Price': data.get('price', 0.00), 'MinimumStock': 5, 'CreatedAt': client_info, 'ModifiedAt': client_info, 'Serial': data.get('serial') }
-#     query = "INSERT INTO items (Id, Barcode, Name, MaterialId, SizeId, IsActive, CreatedById, CreatedDate, ModifiedById, ModifiedDate, BrandId, ModelId, Price, MinimumStock, CreatedAt, ModifiedAt, Serial) VALUES (%(Id)s, %(Barcode)s, %(Name)s, %(MaterialId)s, %(SizeId)s, %(IsActive)s, %(CreatedById)s, %(CreatedDate)s, %(ModifiedById)s, %(ModifiedDate)s, %(BrandId)s, %(ModelId)s, %(Price)s, %(MinimumStock)s, %(CreatedAt)s, %(ModifiedAt)s, %(Serial)s)"
-#     try:
-#         cur = mysql.connection.cursor()
-#         cur.execute(query, new_item)
-#         mysql.connection.commit()
-#         cur.close()
-#         return jsonify({"status": "success", "message": f"Item '{data.get('name')}' berhasil ditambahkan."}), 201
-#     except Exception as e:
-#         mysql.connection.rollback()
-#         return jsonify({"status": "error", "message": str(e)}), 500
-
 @api_bp.route('/add-item', methods=['POST'])
 @login_required
 @permission_required('WNB') 
 def add_item():
     data = request.get_json()
     client_info = data.get('clientInfo', 'Unknown Client')
-    
-    # --- 1. Dapatkan URL endpoint dari environment variables ---
-    sql_server_endpoint = os.getenv('SQL_SERVER_API_BASE_URL')
-    endpoint = f"{sql_server_endpoint}/packinglist/batch-insert"
-    if not sql_server_endpoint:
-        return jsonify({"status": "error", "message": "Endpoint SQL Server tidak dikonfigurasi."}), 500
 
     # --- 2. Generate data item baru (barcode, id, dll) ---
     now = datetime.now()
@@ -544,6 +547,9 @@ def add_item():
     cur = None # Inisialisasi cursor di luar try-except
     try:
         cur = mysql.connection.cursor()
+        conn_sql = get_sql_server_connection()
+        if not conn_sql:
+            raise Exception("Gagal terhubung ke database Packing List.")
 
         # --- 3. Ambil nama 'Size' dari database berdasarkan 'sizeId' ---
         size_id = data.get('sizeId')
@@ -552,23 +558,11 @@ def add_item():
         if not size_record:
             return jsonify({"status": "error", "message": "ID Ukuran tidak valid."}), 400
         size_name = size_record['Name']
-
-        # --- 4. Siapkan payload untuk dikirim ke endpoint eksternal ---
-        # Endpoint mengharapkan sebuah list/array, jadi kita bungkus datanya
-        external_payload = [{
-            "Barcode": barcode,
-            "Color": "-",
-            "Item": data.get('name'),
-            "Size": size_name
-        }]
-
-        # --- 5. Kirim data ke endpoint eksternal SEBELUM menyimpan ke lokal ---
-        try:
-            response = requests.post(endpoint, json=external_payload, timeout=10)
-            response.raise_for_status()
-        except requests.exceptions.RequestException as e:
-            # Jika gagal, batalkan semua operasi dan kirim error 503
-            return jsonify({"status": "error", "message": f"Gagal mengirim data ke server eksternal: {e}"}), 503
+        # --- PERUBAHAN: Lakukan INSERT langsung ke SQL Server ---
+        cursor_sql = conn_sql.cursor()
+        sql_insert = "INSERT INTO dbo.ViewBarcodeSystemCMT (Barcode, Color, Item, Size) VALUES (?, ?, ?, ?);"
+        cursor_sql.execute(sql_insert, barcode, '-', data.get('name'), size_name)
+        # --- AKHIR PERUBAHAN ---
 
         # --- 6. Jika berhasil, lanjutkan penyimpanan ke database MySQL lokal ---
         new_item = { 
@@ -583,16 +577,18 @@ def add_item():
         query = "INSERT INTO items (Id, Barcode, Name, MaterialId, SizeId, IsActive, CreatedById, CreatedDate, ModifiedById, ModifiedDate, BrandId, ModelId, Price, MinimumStock, CreatedAt, ModifiedAt, Serial) VALUES (%(Id)s, %(Barcode)s, %(Name)s, %(MaterialId)s, %(SizeId)s, %(IsActive)s, %(CreatedById)s, %(CreatedDate)s, %(ModifiedById)s, %(ModifiedDate)s, %(BrandId)s, %(ModelId)s, %(Price)s, %(MinimumStock)s, %(CreatedAt)s, %(ModifiedAt)s, %(Serial)s)"
         
         cur.execute(query, new_item)
+        conn_sql.commit()
         mysql.connection.commit()
         
         return jsonify({"status": "success", "message": f"Item '{data.get('name')}' berhasil ditambahkan."}), 201
 
     except Exception as e:
-        mysql.connection.rollback()
+        if conn_sql: conn_sql.rollback()
+        if mysql.connection: mysql.connection.rollback()
         return jsonify({"status": "error", "message": str(e)}), 500
     finally:
-        if cur:
-            cur.close()
+        if conn_sql: conn_sql.close()
+        if cur: cur.close()
 
 @api_bp.route('/add-lookup-item', methods=['POST'])
 @login_required
@@ -838,29 +834,44 @@ def upload_packing_list_csv():
             required_headers = {'Barcode', 'Color', 'Item', 'Size'}
             if not required_headers.issubset(reader.fieldnames):
                 return jsonify({"status": "error", "message": f"File CSV harus memiliki header: {', '.join(required_headers)}"}), 400
-
-            # Ubah data CSV menjadi list of dictionaries (payload JSON)
-            # Mengganti nilai None (dari sel kosong) menjadi string kosong
-            json_payload = [{k: (v if v is not None else '') for k, v in row.items()} for row in reader]
-
-            # Kirim ke endpoint batch-insert (logika ini tetap sama)
-            base_url = os.getenv('SQL_SERVER_API_BASE_URL')
-            if not base_url:
-                return jsonify({"status": "error", "message": "URL API Packing List tidak dikonfigurasi."}), 500
             
-            endpoint = f"{base_url}/packinglist/batch-insert"
+            conn_sql = get_sql_server_connection()
+            if not conn_sql:
+                raise Exception("Gagal terhubung ke database Packing List.")
             
-            try:
-                response = requests.post(endpoint, json=json_payload, timeout=30)
-                response.raise_for_status()
-                return jsonify(response.json()), response.status_code
-            except requests.exceptions.RequestException as e:
-                return jsonify({"status": "error", "message": f"Gagal mengirim data ke server Packing List: {e}"}), 503
+            cursor = conn_sql.cursor()
+            inserted_count = 0
+            updated_count = 0
+            # --- PERUBAHAN: Logika UPSERT langsung ke DB ---
+            sql_check = "SELECT 1 FROM dbo.ViewBarcodeSystemCMT WHERE Barcode = ?;"
+            sql_update = "UPDATE dbo.ViewBarcodeSystemCMT SET Color = ?, Item = ?, Size = ? WHERE Barcode = ?;"
+            sql_insert = "INSERT INTO dbo.ViewBarcodeSystemCMT (Barcode, Color, Item, Size) VALUES (?, ?, ?, ?);"
 
+            for index, row in df.iterrows():
+                barcode = row.get('Barcode')
+                if not barcode: continue
+
+                cursor.execute(sql_check, barcode)
+                if cursor.fetchone():
+                    cursor.execute(sql_update, row.get('Color'), row.get('Item'), row.get('Size'), barcode)
+                    updated_count += 1
+                else:
+                    cursor.execute(sql_insert, barcode, row.get('Color'), row.get('Item'), row.get('Size'))
+                    inserted_count += 1
+            
+            conn_sql.commit()
+            # --- AKHIR PERUBAHAN ---
+            
+            return jsonify({
+                "message": "Data berhasil diproses.",
+                "total_records_received": len(df),
+                "total_records_inserted": inserted_count,
+                "total_records_updated": updated_count
+            }), 200
         except Exception as e:
             return jsonify({"status": "error", "message": f"Gagal memproses file CSV: {e}"}), 500
-
-    return jsonify({"status": "error", "message": "Format file tidak valid. Harap unggah file .csv"}), 400
+        finally:
+         if 'conn_sql' in locals() and conn_sql: conn_sql.close()
 
 # ... (di dalam file api.py)
 
@@ -868,62 +879,55 @@ def upload_packing_list_csv():
 @login_required
 @permission_required('WPL')
 def delete_packing_list_item(barcode):
-    base_url = os.getenv('SQL_SERVER_API_BASE_URL')
-    if not base_url:
-        return jsonify({"status": "error", "message": "URL API Packing List tidak dikonfigurasi."}), 500
+    conn_sql = get_sql_server_connection()
+    if not conn_sql:
+        return jsonify({"status": "error", "message": "Gagal terhubung ke database Packing List."}), 503
     
     try:
-        endpoint = f"{base_url}/packinglist/delete/{barcode}"
+        cursor = conn_sql.cursor()
+        # --- PERUBAHAN: DELETE langsung dari DB ---
+        cursor.execute("DELETE FROM dbo.ViewBarcodeSystemCMT WHERE Barcode = ?", barcode)
+        conn_sql.commit()
+        # --- AKHIR PERUBAHAN ---
         
-        response = requests.delete(endpoint, timeout=10)
-        
-        # --- PERBAIKAN UTAMA DI SINI ---
-        # Periksa apakah request berhasil (status code 2xx)
-        if response.ok:
-            # Jika berhasil, SELALU kirim format respons standar kita sendiri ke frontend
-            return jsonify({
-                "status": "success", 
-                "message": f"Barcode {barcode} berhasil dihapus."
-            }), 200
+        if cursor.rowcount > 0:
+            return jsonify({"status": "success", "message": f"Barcode {barcode} berhasil dihapus."}), 200
         else:
-            # Jika tidak, coba baca error dari server eksternal
-            try:
-                error_details = response.json()
-                error_message = error_details.get('message') or error_details.get('error') or "Terjadi kesalahan di server eksternal."
-            except ValueError:
-                error_message = response.text or "Terjadi kesalahan tidak dikenal di server eksternal."
-            return jsonify({"status": "error", "message": error_message}), response.status_code
-        # --- AKHIR PERBAIKAN ---
+            return jsonify({"status": "error", "message": "Barcode tidak ditemukan."}), 404
+            
+    except pyodbc.Error as ex:
+        conn_sql.rollback()
+        return jsonify({"status": "error", "message": f"Database error: {str(ex)}"}), 500
+    finally:
+        conn_sql.close()
 
-    except requests.exceptions.RequestException as e:
-        # Menangani error koneksi
-        return jsonify({"status": "error", "message": f"Gagal terhubung ke server Packing List: {e}"}), 503
-    
+
 @api_bp.route('/packinglist/detail/<int:idno>')
 @login_required
-@permission_required('RPL') # Menggunakan izin Baca Packing List
+@permission_required('RPL')
 def get_packing_list_detail(idno):
-    base_url = os.getenv('SQL_SERVER_API_BASE_URL')
-    if not base_url:
-        return jsonify({"status": "error", "message": "URL API Packing List tidak dikonfigurasi."}), 500
+    conn_sql = get_sql_server_connection()
+    if not conn_sql:
+        return jsonify({"status": "error", "message": "Gagal terhubung ke database Packing List."}), 503
     
     try:
-        endpoint = f"{base_url}/packinglist/history/detail/{idno}"
-        response = requests.get(endpoint, timeout=10)
-        response.raise_for_status()
+        cursor = conn_sql.cursor()
+        # --- PERUBAHAN: SELECT langsung dari DB ---
+        query = "SELECT InvId, Size, Color, Qty FROM dbo.PackListCmtDet WHERE IDNo = ?;"
+        cursor.execute(query, idno)
+        # --- AKHIR PERUBAHAN ---
         
-        # Langsung teruskan data detail dari server eksternal
-        return jsonify({
-            "status": "success", 
-            "data": response.json()  # Pastikan data ada di dalam key "data"
-        }), 200
+        columns = [column[0] for column in cursor.description]
+        results = [dict(zip(columns, row)) for row in cursor.fetchall()]
+        
+        return jsonify({"status": "success", "data": results}), 200
+            
+    except pyodbc.Error as ex:
+        return jsonify({"status": "error", "message": f"Database error: {str(ex)}"}), 500
+    finally:
+        conn_sql.close()
+    
 
-    except requests.exceptions.RequestException as e:
-        error_message = f"Gagal mengambil detail dari server Packing List: {e}"
-        status_code = 503
-        if e.response is not None:
-            status_code = e.response.status_code
-        return jsonify({"status": "error", "message": error_message}), status_code
 
 # --- TAMBAHKAN FUNGSI BARU UNTUK MEMBACA HEADER EXCEL ---
 def clean_headers(headers):
@@ -936,6 +940,8 @@ def clean_headers(headers):
         else:
             cleaned_headers.append(str(header).strip())
     return cleaned_headers
+
+
 @api_bp.route('/multipayroll/get-headers', methods=['POST'])
 @login_required
 @permission_required('RA')
@@ -1136,3 +1142,154 @@ def calculate_payroll_checksum():
         return jsonify({"status": "success", "checksum": checksum})
     except Exception as e:
         return jsonify({"status": "error", "message": f"Gagal menghitung checksum: {str(e)}"}), 500
+    
+# ... (di dalam file api.py)
+
+
+def get_jbbdata_sql_server_connection():
+    """Membuat koneksi ke database SQL Server untuk JBBData."""
+    try:
+        conn = pyodbc.connect(
+            'DRIVER={' + os.getenv('SQL_SERVER_DRIVER') + '};'
+            'SERVER=' + os.getenv('SQL_SERVER_HOST') + ';'
+            'DATABASE=' + os.getenv('JBBData_DATABASE') + ';'
+            'UID=' + os.getenv('SQL_SERVER_USER') + ';'
+            'PWD=' + os.getenv('SQL_SERVER_PASSWORD') + ';'
+        )
+        return conn
+    except pyodbc.Error as ex:
+        print(f"Gagal terhubung ke SQL Server (JBBData): {ex}")
+        return None
+@api_bp.route('/analytics/factory-range')
+@login_required
+@permission_required('RA')
+def get_factory_sales_by_range():
+    start_date_str = request.args.get('start_date')
+    end_date_str = request.args.get('end_date')
+
+    if not start_date_str or not end_date_str:
+        return jsonify({"status": "error", "message": "Parameter tanggal diperlukan."}), 400
+
+    conn_sql = get_jbbdata_sql_server_connection()
+    if not conn_sql:
+        return jsonify({"status": "error", "message": "Gagal terhubung ke database Pabrik."}), 503
+
+    try:
+        cursor = conn_sql.cursor()
+        query = """
+            SELECT 
+                SUM(Amount) as total_penjualan,
+                SUM(Qty) as total_lusin
+            FROM dbo.ViewSalesReportExt 
+            WHERE CAST(InvDate AS DATE) BETWEEN ? AND ?
+        """
+        cursor.execute(query, start_date_str, end_date_str)
+        
+        result = cursor.fetchone()
+        
+        # --- PERBAIKAN UTAMA DI SINI ---
+        # Periksa apakah query mengembalikan hasil. Jika tidak, artinya tidak ada penjualan.
+        if result and result.total_penjualan is not None:
+            # Jika ada penjualan, proses seperti biasa
+            summary = {
+                'total_penjualan': str(result.total_penjualan),
+                'total_lusin': str(result.total_lusin or 0)
+            }
+        else:
+            # Jika tidak ada penjualan, kembalikan nilai nol
+            summary = {
+                'total_penjualan': '0',
+                'total_lusin': '0'
+            }
+        # --- AKHIR PERBAIKAN ---
+
+        return jsonify({"status": "success", "data": {"total": summary}})
+
+    except Exception as e: # Tangkap semua jenis error untuk penanganan yang lebih baik
+        return jsonify({"status": "error", "message": f"Terjadi kesalahan internal: {str(e)}"}), 500
+    finally:
+        if conn_sql:
+            conn_sql.close()
+
+@api_bp.route('/analytics/factory-timeseries')
+@login_required
+@permission_required('RA')
+def get_factory_analytics_timeseries():
+    start_date_str = request.args.get('start_date')
+    end_date_str = request.args.get('end_date')
+
+    if not start_date_str or not end_date_str:
+        return jsonify({"status": "error", "message": "Parameter tanggal diperlukan."}), 400
+
+    conn_sql = get_jbbdata_sql_server_connection()
+    if not conn_sql:
+        return jsonify({"status": "error", "message": "Gagal terhubung ke database Pabrik."}), 503
+
+    try:
+        cursor = conn_sql.cursor()
+        query = """
+            SELECT 
+                CAST(InvDate AS DATE) as tanggal, 
+                SUM(Amount) as total_penjualan
+            FROM dbo.ViewSalesReportExt
+            WHERE CAST(InvDate AS DATE) BETWEEN ? AND ?
+            GROUP BY CAST(InvDate AS DATE)
+            ORDER BY tanggal ASC;
+        """
+        cursor.execute(query, start_date_str, end_date_str)
+        
+        columns = [column[0] for column in cursor.description]
+        results = [dict(zip(columns, row)) for row in cursor.fetchall()]
+        
+        # Format data agar konsisten
+        for row in results:
+            if isinstance(row.get('total_penjualan'), decimal.Decimal):
+                row['total_penjualan'] = str(row['total_penjualan'])
+            if isinstance(row.get('tanggal'), (datetime, date)):
+                row['tanggal'] = row['tanggal'].strftime('%Y-%m-%d')
+
+        return jsonify({"status": "success", "data": results})
+    except Exception as e:
+        return jsonify({"status": "error", "message": f"Gagal mengambil data tren: {str(e)}"}), 500
+    finally:
+        if conn_sql:
+            conn_sql.close()
+
+@api_bp.route('/analytics/timeseries-hourly')
+@login_required
+@permission_required('RA')
+def get_analytics_timeseries_hourly():
+    target_date_str = request.args.get('date', date.today().strftime('%Y-%m-%d'))
+    try:
+        target_date = datetime.strptime(target_date_str, '%Y-%m-%d').date()
+    except ValueError:
+        return jsonify({"status": "error", "message": "Format tanggal tidak valid."}), 400
+
+    try:
+        cur = mysql.connection.cursor()
+        # Query penjualan per jam
+        query = """
+            SELECT 
+                HOUR(CreatedDate) as hour,
+                SUM(TotalPrice) as total_penjualan
+            FROM activities
+            WHERE Type = 'SalesOrder' AND DATE(CreatedDate) = %s
+            GROUP BY HOUR(CreatedDate)
+            ORDER BY hour ASC;
+        """
+        cur.execute(query, [target_date])
+        results = cur.fetchall()
+        cur.close()
+
+        # Format hasil agar jam 0-23 selalu ada
+        timeseries = []
+        result_map = {row['hour']: str(row['total_penjualan']) if row['total_penjualan'] is not None else '0' for row in results}
+        for h in range(24):
+            timeseries.append({
+                'hour': h,
+                'total_penjualan': result_map.get(h, '0')
+            })
+
+        return jsonify({"status": "success", "timeseries": timeseries})
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500

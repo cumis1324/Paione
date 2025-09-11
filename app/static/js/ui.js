@@ -71,7 +71,7 @@ export function renderSalesDetail(details, header) {
     }
 
     const headers = ['Nama Barang', 'Qty', 'Harga', 'Diskon', 'Subtotal', 'Note', 'Serial'];
-    let tableHTML = `<div class="overflow-x-auto"><table class="min-w-full divide-y divide-gray-200">
+    let tableHTML = `<div class="responsive-table-container"><table class="min-w-full divide-y divide-gray-200">
         <thead class="bg-gray-50"><tr>
             ${headers.map(h => `<th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">${h}</th>`).join('')}
         </tr></thead>
@@ -87,13 +87,13 @@ export function renderSalesDetail(details, header) {
         totalSubtotal += parseFloat(item.Subtotal) || 0;
 
         tableHTML += `<tr>
-            <td class="px-4 py-2 whitespace-nowrap text-sm">${item.NamaBarang || '-'}</td>
-            <td class="px-4 py-2 whitespace-nowrap text-sm">${item.Qty || 0}</td>
-            <td class="px-4 py-2 whitespace-nowrap text-sm">${formatRupiah(item.Price)}</td>
-            <td class="px-4 py-2 whitespace-nowrap text-sm">${formatRupiah(item.Discount)}</td>
-            <td class="px-4 py-2 whitespace-nowrap text-sm">${formatRupiah(item.Subtotal)}</td>
-            <td class="px-4 py-2 whitespace-nowrap text-sm">${item.Note || '-'}</td>
-            <td class="px-4 py-2 whitespace-nowrap text-sm">${item.Serial || '-'}</td>
+            <td data-label="Nama Barang" class="px-4 py-2 whitespace-nowrap text-sm">${item.NamaBarang || '-'}</td>
+            <td data-label="Qty" class="px-4 py-2 whitespace-nowrap text-sm">${item.Qty || 0}</td>
+            <td data-label="Harga" class="px-4 py-2 whitespace-nowrap text-sm">${formatRupiah(item.Price)}</td>
+            <td data-label="Diskon" class="px-4 py-2 whitespace-nowrap text-sm">${formatRupiah(item.Discount)}</td>
+            <td data-label="Subtotal" class="px-4 py-2 whitespace-nowrap text-sm">${formatRupiah(item.Subtotal)}</td>
+            <td data-label="Note" class="px-4 py-2 whitespace-nowrap text-sm">${item.Note || '-'}</td>
+            <td data-label="Serial" class="px-4 py-2 whitespace-nowrap text-sm">${item.Serial || '-'}</td>
         </tr>`;
     });
 
@@ -212,23 +212,14 @@ export function renderTableRows(tableBody, data, type) {
         const isActive = item.IsActive == 1;
         const statusHTML = `<span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${isActive ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}">${isActive ? 'Aktif' : 'Nonaktif'}</span>`;
         const isActionable = !['penjualan', 'penerimaan', 'piutang', 'packinglist-barcode'].includes(type);
-        // const actions = isActionable ? `<td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-        //     ${isSuperAdmin() ? `<button class="text-gray-500 hover:text-gray-800 toggle-active-btn" data-id="${item.Id}" title="${isActive ? 'Nonaktifkan' : 'Aktifkan'}">${isActive ? 'Nonaktifkan' : 'Aktifkan'}</button>` : ''}
-        //     ${can('W', 'items') && type === 'items' ? `<button class="text-indigo-600 hover:text-indigo-900 ml-4 edit-item-btn" data-id="${item.Id}">Edit</button>` : ''}
-        //     ${can('W', type) && type !== 'items' ? `<button class="text-indigo-600 hover:text-indigo-900 ml-4 edit-lookup-btn" data-id="${item.Id}" data-name="${item.Name}">Edit</button>` : ''}
-        //     ${can('D', type) ? `<button class="text-red-600 hover:text-red-900 ml-4 delete-btn" data-id="${item.Id}">Hapus</button>` : ''}
-        //     ${can('P', 'items') && type === 'items' ? `<a href="/print/barcode/${item.Id}" target="_blank" class="text-green-600 hover:text-green-900 ml-4">Cetak Barcode</a>` : ''}
-        // </td>` : '';
         let actions = '';
         const isLookupPage = ['materials', 'sizes', 'brands', 'models'].includes(type);
         if (type === 'packinglist-barcode') {
-            // Aksi khusus untuk halaman Packing List
-            actions = `<td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+            actions = `<td data-label="Aksi" class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                 ${can('W', 'packinglist-barcode') ? `<button class="text-red-600 hover:text-red-900 delete-packinglist-btn" data-barcode="${item.Barcode}">Hapus</button>` : ''}
             </td>`;
         } else if (isLookupPage || type === 'items') {
-            // Aksi untuk halaman Master Data
-            actions = `<td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+            actions = `<td data-label="Aksi" class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                 ${isSuperAdmin() ? `<button class="text-gray-500 hover:text-gray-800 toggle-active-btn" data-id="${item.Id}" title="${isActive ? 'Nonaktifkan' : 'Aktifkan'}">${isActive ? 'Nonaktifkan' : 'Aktifkan'}</button>` : ''}
                 ${can('W', 'items') && type === 'items' ? `<button class="text-indigo-600 hover:text-indigo-900 ml-4 edit-item-btn" data-id="${item.Id}">Edit</button>` : ''}
                 ${can('W', type) && isLookupPage ? `<button class="text-indigo-600 hover:text-indigo-900 ml-4 edit-lookup-btn" data-id="${item.Id}" data-name="${item.Name}">Edit</button>` : ''}
@@ -236,7 +227,6 @@ export function renderTableRows(tableBody, data, type) {
                 ${can('P', 'items') && type === 'items' ? `<a href="/print/barcode/${item.Id}" target="_blank" class="text-green-600 hover:text-green-900 ml-4">Cetak Barcode</a>` : ''}
             </td>`;
         }
-        // --- PERUBAHAN DI SINI: Logika untuk memformat harga ---
         let rowData = '';
         config.columns.forEach(col => {
             let cellValue;
@@ -247,24 +237,23 @@ export function renderTableRows(tableBody, data, type) {
             } else {
                 cellValue = item[col.key] || '-';
             }
-            rowData += `<td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">${cellValue}</td>`;
+            rowData += `<td data-label="${col.label}" class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">${cellValue}</td>`;
         });
-        // --- AKHIR PERUBAHAN ---
         const newRow = document.createElement('tr');
         if (type === 'packinglist-riwayat') {
             newRow.classList.add('cursor-pointer', 'hover:bg-gray-50', 'packinglist-row-clickable');
             newRow.dataset.idno = item.IDNo;
-            // Simpan data baris untuk digunakan nanti di modal
             newRow.dataset.headerData = JSON.stringify(item);
         }
         if (type === 'penjualan') {
             newRow.classList.add('cursor-pointer', 'hover:bg-gray-50', 'sales-row-clickable');
-            newRow.dataset.activityId = item.Id; // Tambahkan ID aktivitas
+            newRow.dataset.activityId = item.Id;
         }
         newRow.innerHTML = rowData + actions;
         tableBody.appendChild(newRow);
     });
 }
+
 
 export async function handleEditItem(id) {
     try {
@@ -300,7 +289,6 @@ export async function handleEditItem(id) {
 export function renderPackingListDetail(details, headerData) {
     const contentContainer = elements.salesDetailContent;
 
-    // Buat header modal dari data yang kita simpan di baris
     let headerHTML = `
         <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4 text-sm border-b pb-3">
             <div><strong>ID:</strong> ${headerData.IDNo || '-'}</div>
@@ -315,9 +303,8 @@ export function renderPackingListDetail(details, headerData) {
         return;
     }
 
-    // Buat tabel untuk item detail
     const headers = ['InvId', 'Size', 'Color', 'Qty'];
-    let tableHTML = `<div class="overflow-x-auto"><table class="min-w-full divide-y divide-gray-200">
+    let tableHTML = `<div class="responsive-table-container"><table class="min-w-full divide-y divide-gray-200">
         <thead class="bg-gray-50"><tr>
             ${headers.map(h => `<th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">${h}</th>`).join('')}
         </tr></thead>
@@ -327,10 +314,10 @@ export function renderPackingListDetail(details, headerData) {
     details.forEach(item => {
         totalQty += parseInt(item.Qty, 10) || 0;
         tableHTML += `<tr>
-            <td class="px-4 py-2 text-sm">${item.InvId || '-'}</td>
-            <td class="px-4 py-2 text-sm">${item.Size || '-'}</td>
-            <td class="px-4 py-2 text-sm">${item.Color || '-'}</td>
-            <td class="px-4 py-2 text-sm">${item.Qty || 0}</td>
+            <td data-label="InvId" class="px-4 py-2 text-sm">${item.InvId || '-'}</td>
+            <td data-label="Size" class="px-4 py-2 text-sm">${item.Size || '-'}</td>
+            <td data-label="Color" class="px-4 py-2 text-sm">${item.Color || '-'}</td>
+            <td data-label="Qty" class="px-4 py-2 text-sm">${item.Qty || 0}</td>
         </tr>`;
     });
 

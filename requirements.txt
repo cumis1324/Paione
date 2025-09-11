@@ -4,4 +4,4 @@ PyMySQL
 python-dotenv
 requests
 openpyxl
-crcmod
+pyodbc

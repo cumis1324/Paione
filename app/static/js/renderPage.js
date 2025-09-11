@@ -2,6 +2,7 @@ import { resetLazyLoadState, lazyLoadState, currentSort, setCurrentSort, pageCon
 import { api } from './api.js';
 import { showNotification, showLoader, openLookupModal, closeLookupModal, renderTableRows, formatRupiah} from './ui.js';
 import { renderAnalyticsShell, stopRealtimeUpdates } from './analytics.js'
+import { renderFactoryAnalyticsShell } from './factoryanalytics.js';
 
 
 const appContent = document.getElementById('app-content');
@@ -24,7 +25,7 @@ const debounce = (func, delay = 500) => {
             const loaderDiv = document.createElement('div');
             loaderDiv.id = loaderId;
             loaderDiv.innerHTML = `<div class="flex justify-center items-center p-4"><svg class="animate-spin h-5 w-5 text-indigo-600" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg></div>`;
-            const tableContainer = dataContainer.querySelector('.overflow-x-auto');
+            const tableContainer = dataContainer.querySelector('.responsive-table-container');
             if(tableContainer) tableContainer.appendChild(loaderDiv);
         }
         
@@ -42,7 +43,7 @@ const debounce = (func, delay = 500) => {
                     const sortIcon = isCurrentSortCol ? (currentSort.order === 'asc' ? '▲' : '▼') : '';
                     headerHTML += `<th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer sortable-header" data-column="${col.key}">${col.label} <span class="sort-indicator">${sortIcon}</span></th>`;
                 });
-                const tableHTML = `<div class="overflow-x-auto"><table class="min-w-full divide-y divide-gray-200"><thead class="bg-gray-50"><tr>${headerHTML}${!['penjualan', 'penerimaan', 'piutang', 'analytics'].includes(type) ? '<th class="relative px-6 py-3"><span class="sr-only">Actions</span></th>' : ''}</tr></thead><tbody class="bg-white divide-y divide-gray-200"></tbody></table></div>`;
+                const tableHTML = `<div class="responsive-table-container"><table class="min-w-full divide-y divide-gray-200"><thead class="bg-gray-50"><tr>${headerHTML}${!['penjualan', 'penerimaan', 'piutang', 'analytics'].includes(type) ? '<th class="relative px-6 py-3"><span class="sr-only">Actions</span></th>' : ''}</tr></thead><tbody class="bg-white divide-y divide-gray-200"></tbody></table></div>`;
                 dataContainer.innerHTML = tableHTML;
     
                 dataContainer.querySelectorAll('.sortable-header').forEach(header => {
@@ -108,10 +109,17 @@ const debounce = (func, delay = 500) => {
         }
 
         pageTitle.textContent = config.title;
-
+        if (['stock-in', 'stock-out'].includes(config.type)) {
+        appContent.innerHTML = `<div class="p-4 text-center bg-gray-50 rounded-lg">Fungsionalitas untuk <strong>${config.title}</strong> sedang dalam pengembangan.</div>`;
+        return;
+        }
         if (config.type === 'analytics') {
             renderAnalyticsShell();
             return;
+        }
+        if (config.type === 'factory-analytics') {
+        renderFactoryAnalyticsShell();
+        return;
         }
         if (config.type === 'multipayroll') {
         renderMultiPayrollPage();
@@ -180,21 +188,9 @@ const debounce = (func, delay = 500) => {
                 </div>
             </div>
             ${filtersHTML}
-            <div id="data-container" class="overflow-x-auto"></div>
+            <div id="data-container"></div>
             
         </div>`;
-        // appContent.innerHTML = `
-        //     <div class="bg-white p-4 rounded-lg shadow-md">
-        //         <div class="flex flex-col sm:flex-row justify-between items-center mb-4 gap-4">
-        //             <input type="search" id="search-input" placeholder="Cari..." class="w-full sm:w-1/3 rounded-md border-gray-300 shadow-sm">
-        //             <div class="flex gap-x-2">
-        //                 <button id="refresh-btn" class="px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700">Refresh</button>
-        //                 ${can('W', config.type) && !['items', 'penjualan', 'penerimaan', 'piutang'].includes(config.type) ? '<button id="add-new-btn" class="px-4 py-2 bg-indigo-600 text-white rounded-md">Tambah Baru</button>' : ''}
-        //             </div>
-        //         </div>
-        //         ${filtersHTML}
-        //         <div id="data-container"></div>
-        //     </div>`;
         
         await loadTableData(config.type, '', false);
         
@@ -516,13 +512,6 @@ function setupMultiPayrollEventListeners() {
                 headers.forEach(header => {
                     const savedColumn = savedMapping ? savedMapping[field] : null;
                     const isSelected = header && savedColumn === header;
-                    // const isSelected = header && (
-                    //     field.toLowerCase().replace(/ /g, '') === header.toLowerCase().replace(/ /g, '') ||
-                    //     (field === 'Credited Account' && header.toLowerCase().includes('rekening')) ||
-                    //     (field === 'Receiver Name' && header.toLowerCase().includes('nama')) ||
-                    //     (field === 'Amount' && header.toLowerCase().includes('amount')) ||
-                    //     (field === 'Remark' && header.toLowerCase().includes('remark'))
-                    // );
                     dropdownOptions += `<option value="${header}" ${isSelected ? 'selected' : ''}>${header}</option>`;
                 });
 

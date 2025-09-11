@@ -1,23 +1,32 @@
 import { api } from './api.js';
-import { analyticsState } from './analytics.js'; // Impor state untuk mengetahui mode saat ini
+import { analyticsState } from './analytics.js';
 
-export let timeSeriesChart = null;
+// Variabel untuk grafik Analitik Toko
 export let salesComparisonChart = null; 
 export let quantityComparisonChart = null;
-export let paymentComparisonChart = null
+export let paymentComparisonChart = null;
+export let timeSeriesChart = null;
 
-// Fungsi helper untuk format tanggal ke YYYY-MM-DD
-function formatDate(date) {
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const day = String(date.getDate()).padStart(2, '0');
-    return `${year}-${month}-${day}`;
+// Variabel untuk grafik Analitik Pabrik
+let factorySalesComparisonChart = null;
+let factoryQuantityComparisonChart = null;
+let factoryTimeSeriesChart = null;
+
+
+// --- FUNGSI UNTUK ANALITIK TOKO ---
+
+export function destroyAllCharts() {
+    if (salesComparisonChart) salesComparisonChart.destroy();
+    if (quantityComparisonChart) quantityComparisonChart.destroy();
+    if (paymentComparisonChart) paymentComparisonChart.destroy();
+    if (timeSeriesChart) timeSeriesChart.destroy();
+     if (timeSeriesChart) {
+        timeSeriesChart.destroy();
+        timeSeriesChart = null;
+    }
 }
 
-// --- FUNGSI UTAMA YANG DIPERBAIKI ---
-// Fungsi ini sekarang lebih pintar dalam menghitung periode sebelumnya
-function getPreviousPeriod(currentStartStr, currentEndStr) {
-    const mode = analyticsState.mode;
+function getPreviousPeriod(currentStartStr, currentEndStr, mode = 'daily') {
     const currentStart = new Date(currentStartStr + 'T00:00:00');
     const currentEnd = new Date(currentEndStr + 'T00:00:00');
 
@@ -39,16 +48,19 @@ function getPreviousPeriod(currentStartStr, currentEndStr) {
         prevStart = new Date(prevEnd.getTime() - duration);
     }
     
+    const formatDate = (date) => {
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
+    };
+
     return {
         start: formatDate(prevStart),
         end: formatDate(prevEnd)
     };
 }
-
-// Fungsi untuk membuat label yang lebih deskriptif
-function getChartLabels(currentStartStr, currentEndStr, prevStartStr, prevEndStr) {
-    const mode = analyticsState.mode;
-
+function getChartLabels(currentStartStr, currentEndStr, prevStartStr, prevEndStr, mode) {
     if (mode === 'daily') {
         return {
             currentLabel: new Date(currentStartStr+'T00:00:00').toLocaleDateString('id-ID', {day: 'numeric', month: 'short'}),
@@ -57,7 +69,7 @@ function getChartLabels(currentStartStr, currentEndStr, prevStartStr, prevEndStr
     }
     if (mode === 'weekly') return { currentLabel: "Minggu Ini", prevLabel: "Minggu Lalu" };
     if (mode === 'monthly') return { currentLabel: "Bulan Ini", prevLabel: "Bulan Lalu" };
-    
+    // Custom range
     const formatShort = (dateStr) => new Date(dateStr+'T00:00:00').toLocaleDateString('id-ID', {day:'numeric',month:'short'});
     return {
         currentLabel: `${formatShort(currentStartStr)} - ${formatShort(currentEndStr)}`,
@@ -65,16 +77,8 @@ function getChartLabels(currentStartStr, currentEndStr, prevStartStr, prevEndStr
     }
 }
 
-
-export function destroyAllCharts() {
-    if (timeSeriesChart) timeSeriesChart.destroy(); 
-    if (salesComparisonChart) salesComparisonChart.destroy();
-    if (quantityComparisonChart) quantityComparisonChart.destroy();
-    if (paymentComparisonChart) paymentComparisonChart.destroy();
-}
-
-export async function renderComparisonChart(currentStartDate, currentEndDate) {
-    const { start: prevStartDate, end: prevEndDate } = getPreviousPeriod(currentStartDate, currentEndDate);
+export async function renderComparisonChart(currentStartDate, currentEndDate, mode = 'daily') {
+    const { start: prevStartDate, end: prevEndDate } = getPreviousPeriod(currentStartDate, currentEndDate, mode);
     
     try {
         const [currentResult, prevResult] = await Promise.all([
@@ -84,21 +88,16 @@ export async function renderComparisonChart(currentStartDate, currentEndDate) {
 
         const currentData = currentResult.data.total || {};
         const prevData = prevResult.data.total || {};
+        const { currentLabel, prevLabel } = getChartLabels(currentStartDate, currentEndDate, prevStartDate, prevEndDate, mode);
         
-        const { currentLabel, prevLabel } = getChartLabels(currentStartDate, currentEndDate, prevStartDate, prevEndDate);
-        
-        //destroyAllCharts();
-
-        // Chart 1: Total Penjualan (Rp)
-        renderSingleChart(
+        salesComparisonChart = renderSingleChart(
             'salesComparisonChart', 'bar', ['Total Penjualan'], `Perbandingan Penjualan`,
             { label: prevLabel, data: [parseFloat(prevData.total_penjualan || 0)] },
             { label: currentLabel, data: [parseFloat(currentData.total_penjualan || 0)] },
             (value) => 'Rp ' + new Intl.NumberFormat('id-ID').format(value)
         );
 
-        // Chart 2: Total Kuantitas (Lusin)
-        renderSingleChart(
+        quantityComparisonChart = renderSingleChart(
             'quantityComparisonChart', 'bar', ['Total Kuantitas'], `Perbandingan Kuantitas`,
             {
                 label: prevLabel, data: [parseFloat(prevData.total_lusin || 0)],
@@ -111,9 +110,8 @@ export async function renderComparisonChart(currentStartDate, currentEndDate) {
             (value) => value + ' Lusin'
         );
 
-        // Chart 3: Status Pembayaran
-        renderSingleChart(
-            'paymentComparisonChart', 'bar', ['EDC, Cash, Transfer', 'Debt', 'Tidak Diketahui'], `Perbandingan Status Pembayaran`,
+        paymentComparisonChart = renderSingleChart(
+            'paymentComparisonChart', 'bar', ['Lunas', 'Belum Lunas', 'Tidak Diketahui'], `Perbandingan Status Pembayaran`,
             { label: prevLabel, data: [parseFloat(prevData.lunas || 0), parseFloat(prevData.belum_lunas || 0), parseFloat(prevData.tidak_diketahui || 0)] },
             {
                 label: currentLabel, data: [parseFloat(currentData.lunas || 0), parseFloat(currentData.belum_lunas || 0), parseFloat(currentData.tidak_diketahui || 0)],
@@ -123,19 +121,51 @@ export async function renderComparisonChart(currentStartDate, currentEndDate) {
         );
 
     } catch (error) {
-        console.error("Gagal membuat grafik perbandingan:", error);
+        console.error("Gagal membuat grafik perbandingan toko:", error);
     }
 }
 
+export async function renderTimeSeriesChart(startDate, endDate, mode = 'daily', data = null) {
+    const container = document.getElementById('timeseries-chart-container');
+    if (!container) return;
+
+    let labels = [];
+    let values = [];
+
+    if (mode === 'daily') {
+        // Jam 06.00 sampai 15.00 (06:00 - 15:00)
+        labels = Array.from({length: 10}, (_, i) => `${i + 6}:00`);
+        if (data && data.timeseries && Array.isArray(data.timeseries)) {
+            values = labels.map((label, idx) => {
+                const jam = idx + 6;
+                const jamData = data.timeseries.find(ts => parseInt(ts.hour) === jam);
+                return jamData ? jamData.total_penjualan : 0;
+            });
+        } else {
+            values = Array(10).fill(0);
+        }
+    } else {
+        if (data && data.timeseries && Array.isArray(data.timeseries)) {
+            labels = data.timeseries.map(ts => ts.label);
+            values = data.timeseries.map(ts => ts.total_penjualan);
+        }
+    }
+
+    renderLineChart('timeSeriesChart', labels, values);
+}
+
+// --- FUNGSI HELPER YANG DIPERBARUI & FUNGSI BARU UNTUK PABRIK ---
+
 function renderSingleChart(canvasId, type, labels, title, prevDataset, currentDataset, yTicksCallback) {
     const canvas = document.getElementById(canvasId);
-    if (!canvas) return;
+    if (!canvas) return null;
+    
     const ctx = canvas.getContext('2d');
 
     const defaultPrevColors = { backgroundColor: 'rgba(156, 163, 175, 0.5)', borderColor: 'rgba(107, 114, 128, 0.5)' };
     const defaultCurrentColors = { backgroundColor: 'rgba(79, 70, 229, 0.5)', borderColor: 'rgba(67, 56, 202, 0.5)' };
 
-    const chartInstance = new Chart(ctx, {
+    return new Chart(ctx, {
         type: type,
         data: {
             labels: labels,
@@ -150,64 +180,95 @@ function renderSingleChart(canvasId, type, labels, title, prevDataset, currentDa
             plugins: { legend: { position: 'top' }, title: { display: true, text: title } }
         }
     });
-
-    if (canvasId === 'salesComparisonChart') salesComparisonChart = chartInstance;
-    else if (canvasId === 'quantityComparisonChart') quantityComparisonChart = chartInstance;
-    else if (canvasId === 'paymentComparisonChart') paymentComparisonChart = chartInstance;
 }
 
-export async function renderTimeSeriesChart(startDate, endDate) {
-    const container = document.getElementById('timeseries-chart-container');
+export function renderLineChart(canvasId, labels, values) {
+    const ctx = document.getElementById(canvasId).getContext('2d');
+    if (window.timeSeriesChart && typeof window.timeSeriesChart.destroy === 'function') {
+        window.timeSeriesChart.destroy();
+        window.timeSeriesChart = null;
+    }
+    window.timeSeriesChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: labels,
+            datasets: [{
+                label: 'Total Penjualan',
+                data: values,
+                fill: true,
+                borderColor: 'rgb(75, 192, 192)',
+                backgroundColor: 'rgba(75, 192, 192, 0.2)',
+                tension: 0.1
+            }]
+        },
+        options: {
+            responsive: true, maintainAspectRatio: false,
+            plugins: { legend: { display: false }, title: { display: true, text: 'Tren Penjualan per Hari' } },
+            scales: { y: { beginAtZero: true, ticks: { callback: (value) => 'Rp ' + new Intl.NumberFormat('id-ID').format(value) } } }
+        }
+    });
+}
+export function destroyAllFactoryCharts() {
+    if (factorySalesComparisonChart) factorySalesComparisonChart.destroy();
+    if (factoryQuantityComparisonChart) factoryQuantityComparisonChart.destroy();
+    if (factoryTimeSeriesChart) factoryTimeSeriesChart.destroy();
+}
+
+export async function renderFactoryComparisonChart(currentStartDate, currentEndDate, mode = 'daily') {
+    const { start: prevStartDate, end: prevEndDate } = getPreviousPeriod(currentStartDate, currentEndDate, mode);
+    
+    try {
+        const [currentResult, prevResult] = await Promise.all([
+            api.getFactoryAnalyticsByRange(currentStartDate, currentEndDate),
+            api.getFactoryAnalyticsByRange(prevStartDate, prevEndDate)
+        ]);
+
+        const currentData = currentResult.data.total || {};
+        const prevData = prevResult.data.total || {};
+        const { currentLabel, prevLabel } = getChartLabels(currentStartDate, currentEndDate, prevStartDate, prevEndDate, mode);
+        
+        destroyAllFactoryCharts();
+
+        factorySalesComparisonChart = renderSingleChart(
+            'factorySalesComparisonChart', 'bar', ['Total Penjualan'], `Perbandingan Penjualan`,
+            { label: prevLabel, data: [parseFloat(prevData.total_penjualan || 0)] },
+            { label: currentLabel, data: [parseFloat(currentData.total_penjualan || 0)] },
+            (value) => 'Rp ' + new Intl.NumberFormat('id-ID').format(value)
+        );
+
+        factoryQuantityComparisonChart = renderSingleChart(
+            'factoryQuantityComparisonChart', 'bar', ['Total Kuantitas'], `Perbandingan Kuantitas`,
+            {
+                label: prevLabel, data: [parseFloat(prevData.total_lusin || 0)],
+                backgroundColor: 'rgba(245, 158, 11, 0.5)', borderColor: 'rgba(217, 119, 6, 0.5)'
+            },
+            {
+                label: currentLabel, data: [parseFloat(currentData.total_lusin || 0)],
+                backgroundColor: 'rgba(239, 68, 68, 0.5)', borderColor: 'rgba(220, 38, 38, 0.5)'
+            },
+            (value) => value + ' Lusin'
+        );
+
+    } catch (error) {
+        console.error("Gagal membuat grafik perbandingan pabrik:", error);
+    }
+}
+export async function renderFactoryTimeSeriesChart(startDate, endDate) {
+    const container = document.getElementById('factory-timeseries-chart-container');
     if (!container) return;
     
     try {
-        const result = await api.getAnalyticsTimeSeries(startDate, endDate);
+        const result = await api.getFactoryAnalyticsTimeSeries(startDate, endDate);
         if (result.status !== 'success') throw new Error(result.message);
 
         const data = result.data;
         const labels = data.map(d => new Date(d.tanggal+'T00:00:00').toLocaleDateString('id-ID', {day: 'numeric', month: 'short'}));
         const values = data.map(d => parseFloat(d.total_penjualan));
         
-        const canvas = document.getElementById('timeSeriesChart');
-        if (!canvas) return;
-        const ctx = canvas.getContext('2d');
-
-        timeSeriesChart = new Chart(ctx, {
-            type: 'line',
-            data: {
-                labels: labels,
-                datasets: [{
-                    label: 'Total Penjualan',
-                    data: values,
-                    fill: true,
-                    borderColor: 'rgb(75, 192, 192)',
-                    backgroundColor: 'rgba(75, 192, 192, 0.2)',
-                    tension: 0.1
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: {
-                    legend: { display: false },
-                    title: {
-                        display: true,
-                        text: 'Tren Penjualan per Hari'
-                    }
-                },
-                scales: {
-                    y: {
-                        beginAtZero: true,
-                        ticks: {
-                            callback: (value) => 'Rp ' + new Intl.NumberFormat('id-ID').format(value)
-                        }
-                    }
-                }
-            }
-        });
+        factoryTimeSeriesChart = renderLineChart('factoryTimeSeriesChart', labels, values);
 
     } catch(error) {
-        console.error("Gagal membuat grafik time series:", error);
+        console.error("Gagal membuat grafik time series pabrik:", error);
         container.innerHTML = `<p class="text-center text-red-500">Gagal memuat data tren.</p>`;
     }
 }

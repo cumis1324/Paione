@@ -12,8 +12,11 @@ export const ITEMS_PER_PAGE = 50;
 
 export const pageConfig = {
     '#analytics': { title: 'Real-time Analytics', type: 'analytics' },
+    '#factory-analytics': { title: 'Penjualan Pabrik', type: 'factory-analytics' },
     '#multipayroll': { title: 'Multi Payroll Converter', type: 'multipayroll' },
     '#payroll-checksum': { title: 'Buat Checksum Payroll', type: 'payroll-checksum' },
+    '#stock-in': { title: 'Stock In', type: 'stock-in', columns: [] },
+    '#stock-out': { title: 'Stock Out', type: 'stock-out', columns: [] },
     '#add-item': { title: 'Tambah Barang Baru', type: 'add-item' },
     '#packinglist-barcode': {
         title: 'Packing List - Barcode CMT',
@@ -84,6 +87,7 @@ export const pageConfig = {
 
 export const permissionMap = {
     'analytics': {'R': 'RA'},
+    'factory-analytics': {'R': 'RA'},
     'multipayroll': {'R': 'RA'},
     'payroll-checksum': {'R': 'RA'},
     'add-item': {'W': 'WNB'}, 
@@ -96,7 +100,10 @@ export const permissionMap = {
     'materials': {'R': 'RM', 'W': 'WM', 'D': 'DM'}, 
     'sizes': {'R': 'RSz', 'W': 'WSz', 'D': 'DSz'},
     'brands': {'R': 'RB', 'W': 'WB', 'D': 'DB'}, 
-    'models': {'R': 'RM', 'W': 'WM', 'D': 'DM'}
+    'models': {'R': 'RM', 'W': 'WM', 'D': 'DM'},
+    'gudang': {'R': 'RGudang'},
+    'stock-in': {'R': 'RGudang', 'W': 'WStok'},
+    'stock-out': {'R': 'RGudang', 'W': 'WStok'}
 };
 
 export function setUserPermissions(permissions) {

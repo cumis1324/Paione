@@ -38,7 +38,7 @@ def login():
                     session['permissions'] = [
                         'SA', 'RI', 'WI', 'DI', 'PB', 'RM', 'WM', 'DM', 
                         'RSz', 'WSz', 'DSz', 'RB', 'WB', 'DB', 'WNB', 
-                        'RP', 'RPe', 'RPi', 'RA', 'RTk', 'RPL', 'WPL'
+                        'RP', 'RPe', 'RPi', 'RA', 'RTk', 'RPL', 'WPL', 'RGudang', 'WStok', 'WStokIn', 'WStokOut'
                     ]
                 elif user['UserName'] == 'jesica303':
                     session['permissions'] = [

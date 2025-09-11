@@ -131,6 +131,20 @@ async function calculatePayrollChecksum(file) {
     return await response.json();
 }
 
+async function getFactoryAnalyticsByRange(startDate, endDate) {
+    const response = await fetch(`/api/analytics/factory-range?start_date=${startDate}&end_date=${endDate}`);
+    return await response.json();
+}
+
+async function getFactoryAnalyticsTimeSeries(startDate, endDate) {
+    const response = await fetch(`/api/analytics/factory-timeseries?start_date=${startDate}&end_date=${endDate}`);
+    return await response.json();
+}
+
+async function getAnalyticsTimeseriesHourly(dateString) {
+    const response = await fetch(`/api/analytics/timeseries-hourly?date=${dateString}`);
+    return await response.json();
+}
 export const api = {
     fetchData,
     getFormData,
@@ -143,6 +157,7 @@ export const api = {
     getSalesDetail,
     getSalesHeader,
     getAnalyticsToday,
+    getAnalyticsTimeseriesHourly,
     getDailyAnalytics,
     getMonthlyAnalytics,
     getAnalyticsByRange,
@@ -151,5 +166,7 @@ export const api = {
     getPackingListDetail,
     getSetting,
     updateSetting,
-    calculatePayrollChecksum
+    calculatePayrollChecksum,
+    getFactoryAnalyticsByRange,
+    getFactoryAnalyticsTimeSeries
 };
