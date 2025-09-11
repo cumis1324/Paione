@@ -20,11 +20,6 @@ ENV/
 .DS_Store
 Thumbs.db
 
-# Executables
-*.exe
-
-# Text files hasil proses
-*.txt
 
 # Node modules (jika pakai npm/yarn)
 node_modules/

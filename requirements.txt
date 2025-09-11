@@ -1,0 +1,7 @@
+Flask
+Flask-MySQLdb
+PyMySQL
+python-dotenv
+requests
+openpyxl
+crcmod
