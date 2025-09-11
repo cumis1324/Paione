@@ -161,6 +161,8 @@ function renderSingleChart(canvasId, type, labels, title, prevDataset, currentDa
     if (!canvas) return null;
     
     const ctx = canvas.getContext('2d');
+    const isDarkMode = document.documentElement.classList.contains('dark');
+    const textColor = isDarkMode ? 'rgba(229, 231, 235, 0.8)' : 'rgba(107, 114, 128, 1)';
 
     const defaultPrevColors = { backgroundColor: 'rgba(156, 163, 175, 0.5)', borderColor: 'rgba(107, 114, 128, 0.5)' };
     const defaultCurrentColors = { backgroundColor: 'rgba(79, 70, 229, 0.5)', borderColor: 'rgba(67, 56, 202, 0.5)' };
@@ -176,14 +178,22 @@ function renderSingleChart(canvasId, type, labels, title, prevDataset, currentDa
         },
         options: {
             responsive: true, maintainAspectRatio: false,
-            scales: { y: { beginAtZero: true, ticks: { callback: yTicksCallback } } },
-            plugins: { legend: { position: 'top' }, title: { display: true, text: title } }
+            scales: { 
+                y: { beginAtZero: true, ticks: { callback: yTicksCallback, color: textColor }, grid: { color: isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)' } },
+                x: { ticks: { color: textColor }, grid: { color: isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)' } }
+            },
+            plugins: { 
+                legend: { position: 'top', labels: { color: textColor } }, 
+                title: { display: true, text: title, color: textColor } 
+            }
         }
     });
 }
 
 export function renderLineChart(canvasId, labels, values) {
     const ctx = document.getElementById(canvasId).getContext('2d');
+    const isDarkMode = document.documentElement.classList.contains('dark');
+    const textColor = isDarkMode ? 'rgba(229, 231, 235, 0.8)' : 'rgba(107, 114, 128, 1)';
     if (window.timeSeriesChart && typeof window.timeSeriesChart.destroy === 'function') {
         window.timeSeriesChart.destroy();
         window.timeSeriesChart = null;
@@ -203,8 +213,14 @@ export function renderLineChart(canvasId, labels, values) {
         },
         options: {
             responsive: true, maintainAspectRatio: false,
-            plugins: { legend: { display: false }, title: { display: true, text: 'Tren Penjualan per Hari' } },
-            scales: { y: { beginAtZero: true, ticks: { callback: (value) => 'Rp ' + new Intl.NumberFormat('id-ID').format(value) } } }
+            plugins: { 
+                legend: { display: false }, 
+                title: { display: true, text: 'Tren Penjualan per Hari', color: textColor } 
+            },
+            scales: { 
+                y: { beginAtZero: true, ticks: { callback: (value) => 'Rp ' + new Intl.NumberFormat('id-ID').format(value), color: textColor }, grid: { color: isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)' } },
+                x: { ticks: { color: textColor }, grid: { color: isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)' } }
+            }
         }
     });
 }

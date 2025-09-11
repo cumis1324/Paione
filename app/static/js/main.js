@@ -5,6 +5,7 @@ import { openSidebar, closeSidebar, showNotification,
     setRefreshDataCallback, openSalesDetailModal, 
     closeSalesDetailModal, renderSalesDetail, renderPackingListDetail, setSalesDetailModalTitle } from './ui.js';
 import { handleDelete, handleDeletePackingList, handleEditLookup, handleToggleActive, refreshData, renderPage } from './renderPage.js';
+import { initializeDarkMode } from './darkmode.js';
 document.addEventListener('DOMContentLoaded', () => {
     const appContent = document.getElementById('app-content');
     const pageTitle = document.getElementById('page-title');
@@ -98,6 +99,7 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('sidebar-close-btn').addEventListener('click', closeSidebar);
     document.getElementById('sidebar-overlay').addEventListener('click', closeSidebar);
     window.addEventListener('hashchange', router);
+    initializeDarkMode();
     setupModalEventListeners();
     const masterDropdownBtn = document.getElementById('master-dropdown-btn');
     const masterDropdownMenu = document.getElementById('master-dropdown-menu');

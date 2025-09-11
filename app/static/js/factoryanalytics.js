@@ -42,12 +42,12 @@ function getPeriodDates(mode, date) {
 // Render shell utama
 export function renderFactoryAnalyticsShell() {
     appContent.innerHTML = `
-        <div class="border-b border-gray-200 bg-white mb-6 overflow-x-auto">
+        <div class="border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 mb-6 overflow-x-auto">
             <nav id="factory-analytics-tabs" class="-mb-px flex space-x-8 px-4" aria-label="Tabs">
-                <a href="#" data-mode="daily" class="tab-link whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm border-indigo-500 text-indigo-600">Harian</a>
-                <a href="#" data-mode="weekly" class="tab-link whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300">Mingguan</a>
-                <a href="#" data-mode="monthly" class="tab-link whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300">Bulanan</a>
-                <a href="#" data-mode="custom" class="tab-link whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300">Manual</a>
+                <a href="#" data-mode="daily" class="tab-link whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm border-indigo-500 text-indigo-600 dark:text-indigo-400">Harian</a>
+                <a href="#" data-mode="weekly" class="tab-link whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-200 dark:hover:border-gray-600">Mingguan</a>
+                <a href="#" data-mode="monthly" class="tab-link whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-200 dark:hover:border-gray-600">Bulanan</a>
+                <a href="#" data-mode="custom" class="tab-link whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-200 dark:hover:border-gray-600">Manual</a>
             </nav>
         </div>
         <div id="factory-analytics-content-area"></div>
@@ -60,38 +60,38 @@ export function renderFactoryAnalyticsShell() {
 function renderFactoryReportContent() {
     const container = document.getElementById('factory-analytics-content-area');
     const customDateRangePicker = factoryAnalyticsState.mode === 'custom' ? `
-        <div class="flex items-center justify-center gap-4 mb-6 p-4 bg-gray-50 rounded-lg">
-            <input type="date" id="factory-start-date-input" class="rounded-md border-gray-300 shadow-sm">
-            <span>s/d</span>
-            <input type="date" id="factory-end-date-input" class="rounded-md border-gray-300 shadow-sm">
-            <button id="factory-fetch-custom-range" class="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700">Tampilkan</button>
+        <div class="flex items-center justify-center gap-4 mb-6 p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
+            <input type="date" id="factory-start-date-input" class="rounded-md border-gray-300 dark:bg-gray-700 dark:border-gray-600 dark:text-white shadow-sm">
+            <span class="dark:text-gray-400">s/d</span>
+            <input type="date" id="factory-end-date-input" class="rounded-md border-gray-300 dark:bg-gray-700 dark:border-gray-600 dark:text-white shadow-sm">
+            <button id="factory-fetch-custom-range" class="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 dark:bg-indigo-700 dark:hover:bg-indigo-600">Tampilkan</button>
         </div>` : '';
 
     const timeSeriesChartContainer = factoryAnalyticsState.mode !== 'daily' ? `
-        <div id="factory-timeseries-chart-container" class="bg-white p-6 rounded-lg shadow col-span-1 lg:col-span-2">
+        <div id="factory-timeseries-chart-container" class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow col-span-1 lg:col-span-2">
             <div style="height: 350px;"><canvas id="factoryTimeSeriesChart"></canvas></div>
         </div>` : '';
 
     container.innerHTML = `
         <div class="flex items-center justify-center mb-6">
-            <button id="factory-prev-period-btn" class="p-2 rounded-md hover:bg-gray-200">
-                <svg class="h-6 w-6 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <button id="factory-prev-period-btn" class="p-2 rounded-md hover:bg-gray-200 dark:hover:bg-gray-700">
+                <svg class="h-6 w-6 text-gray-600 dark:text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
                 </svg>
             </button>
-            <h2 id="factory-current-period-display" class="text-lg font-semibold mx-4 text-center text-gray-800">Memuat...</h2>
-            <button id="factory-next-period-btn" class="p-2 rounded-md hover:bg-gray-200 disabled:opacity-50">
-                <svg class="h-6 w-6 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <h2 id="factory-current-period-display" class="text-lg font-semibold mx-4 text-center text-gray-800 dark:text-gray-200">Memuat...</h2>
+            <button id="factory-next-period-btn" class="p-2 rounded-md hover:bg-gray-200 dark:hover:bg-gray-700 disabled:opacity-50">
+                <svg class="h-6 w-6 text-gray-600 dark:text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
                 </svg>
             </button>
         </div>
         ${customDateRangePicker}
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <div id="factory-summary-card" class="bg-white p-6 rounded-lg shadow col-span-1 lg:col-span-2"></div>
+            <div id="factory-summary-card" class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow col-span-1 lg:col-span-2"></div>
             ${timeSeriesChartContainer}
-            <div id="factory-sales-chart-container" class="bg-white p-6 rounded-lg shadow"><div style="height: 350px;"><canvas id="factorySalesComparisonChart"></canvas></div></div>
-            <div id="factory-quantity-chart-container" class="bg-white p-6 rounded-lg shadow"><div style="height: 350px;"><canvas id="factoryQuantityComparisonChart"></canvas></div></div>
+            <div id="factory-sales-chart-container" class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow"><div style="height: 350px;"><canvas id="factorySalesComparisonChart"></canvas></div></div>
+            <div id="factory-quantity-chart-container" class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow"><div style="height: 350px;"><canvas id="factoryQuantityComparisonChart"></canvas></div></div>
         </div>
     `;
     updateFactoryPeriodDisplay();
@@ -106,10 +106,10 @@ function renderFactorySummaryCard(data) {
     if (!container) return;
     const totals = data.total || {};
     container.innerHTML = `
-        <h3 class="text-sm font-medium text-gray-500">Ringkasan Penjualan Pabrik</h3>
+        <h3 class="text-sm font-medium text-gray-500 dark:text-gray-400">Ringkasan Penjualan Pabrik</h3>
         <div class="mt-2 flex flex-col md:flex-row items-baseline gap-x-4">
-            <p class="text-3xl font-bold text-gray-900">${formatRupiah(totals.total_penjualan || 0)}</p>
-            <p class="text-lg font-medium text-gray-600">(${(totals.total_lusin || 0)} Lusin)</p>
+            <p class="text-3xl font-bold text-gray-900 dark:text-white">${formatRupiah(totals.total_penjualan || 0)}</p>
+            <p class="text-lg font-medium text-gray-600 dark:text-gray-300">(${(totals.total_lusin || 0)} Lusin)</p>
         </div>`;
 }
 
@@ -143,11 +143,11 @@ function setupFactoryAnalyticsEventListeners() {
         if (tab && !tab.classList.contains('border-indigo-500')) {
             const activeTab = tabs.querySelector('.border-indigo-500');
             if(activeTab) {
-                activeTab.classList.remove('border-indigo-500', 'text-indigo-600');
-                activeTab.classList.add('border-transparent', 'text-gray-500', 'hover:text-gray-700', 'hover:border-gray-300');
+                activeTab.classList.remove('border-indigo-500', 'text-indigo-600', 'dark:text-indigo-400');
+                activeTab.classList.add('border-transparent', 'text-gray-500', 'hover:text-gray-700', 'hover:border-gray-300', 'dark:text-gray-400', 'dark:hover:text-gray-200', 'dark:hover:border-gray-600');
             }
-            tab.classList.add('border-indigo-500', 'text-indigo-600');
-            tab.classList.remove('border-transparent', 'text-gray-500', 'hover:text-gray-700', 'hover:border-gray-300');
+            tab.classList.add('border-indigo-500', 'text-indigo-600', 'dark:text-indigo-400');
+            tab.classList.remove('border-transparent', 'text-gray-500', 'hover:text-gray-700', 'hover:border-gray-300', 'dark:text-gray-400', 'dark:hover:text-gray-200', 'dark:hover:border-gray-600');
             
             factoryAnalyticsState.mode = tab.dataset.mode;
             factoryAnalyticsState.currentDate = new Date();

@@ -57,10 +57,10 @@ export function renderSalesDetail(details, header) {
     let headerHTML = '<p class="text-gray-500">Gagal memuat header.</p>';
     if (header) {
         headerHTML = `
-            <div class="grid grid-cols-3 gap-4 mb-4 text-sm">
-                <div><strong>Nomor:</strong> ${header.Nomor || '-'}</div>
-                <div><strong>Nama:</strong> ${header.Name || '-'}</div>
-                <div><strong>Cabang:</strong> ${header.Cabang || '-'}</div>
+            <div class="grid grid-cols-3 gap-4 mb-4 text-sm text-gray-800 dark:text-gray-300">
+                <div><strong class="font-semibold">Nomor:</strong> ${header.Nomor || '-'}</div>
+                <div><strong class="font-semibold">Nama:</strong> ${header.Name || '-'}</div>
+                <div><strong class="font-semibold">Cabang:</strong> ${header.Cabang || '-'}</div>
             </div>
         `;
     }
@@ -71,11 +71,11 @@ export function renderSalesDetail(details, header) {
     }
 
     const headers = ['Nama Barang', 'Qty', 'Harga', 'Diskon', 'Subtotal', 'Note', 'Serial'];
-    let tableHTML = `<div class="responsive-table-container"><table class="min-w-full divide-y divide-gray-200">
-        <thead class="bg-gray-50"><tr>
-            ${headers.map(h => `<th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">${h}</th>`).join('')}
+    let tableHTML = `<div class="responsive-table-container"><table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+        <thead class="bg-gray-50 dark:bg-gray-700"><tr>
+            ${headers.map(h => `<th class="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">${h}</th>`).join('')}
         </tr></thead>
-        <tbody class="bg-white divide-y divide-gray-200">`;
+        <tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">`;
 
     let totalQty = 0;
     let totalDiscount = 0;
@@ -87,22 +87,23 @@ export function renderSalesDetail(details, header) {
         totalSubtotal += parseFloat(item.Subtotal) || 0;
 
         tableHTML += `<tr>
-            <td data-label="Nama Barang" class="px-4 py-2 whitespace-nowrap text-sm">${item.NamaBarang || '-'}</td>
-            <td data-label="Qty" class="px-4 py-2 whitespace-nowrap text-sm">${item.Qty || 0}</td>
-            <td data-label="Harga" class="px-4 py-2 whitespace-nowrap text-sm">${formatRupiah(item.Price)}</td>
-            <td data-label="Diskon" class="px-4 py-2 whitespace-nowrap text-sm">${formatRupiah(item.Discount)}</td>
-            <td data-label="Subtotal" class="px-4 py-2 whitespace-nowrap text-sm">${formatRupiah(item.Subtotal)}</td>
-            <td data-label="Note" class="px-4 py-2 whitespace-nowrap text-sm">${item.Note || '-'}</td>
-            <td data-label="Serial" class="px-4 py-2 whitespace-nowrap text-sm">${item.Serial || '-'}</td>
+            <td data-label="Nama Barang" class="px-4 py-2 whitespace-nowrap text-sm text-gray-800 dark:text-gray-300">${item.NamaBarang || '-'}</td>
+            <td data-label="Qty" class="px-4 py-2 whitespace-nowrap text-sm text-gray-800 dark:text-gray-300">${item.Qty || 0}</td>
+            <td data-label="Harga" class="px-4 py-2 whitespace-nowrap text-sm text-gray-800 dark:text-gray-300">${formatRupiah(item.Price)}</td>
+            <td data-label="Diskon" class="px-4 py-2 whitespace-nowrap text-sm text-gray-800 dark:text-gray-300">${formatRupiah(item.Discount)}</td>
+            <td data-label="Subtotal" class="px-4 py-2 whitespace-nowrap text-sm text-gray-800 dark:text-gray-300">${formatRupiah(item.Subtotal)}</td>
+            <td data-label="Note" class="px-4 py-2 whitespace-nowrap text-sm text-gray-800 dark:text-gray-300">${item.Note || '-'}</td>
+            <td data-label="Serial" class="px-4 py-2 whitespace-nowrap text-sm text-gray-800 dark:text-gray-300">${item.Serial || '-'}</td>
         </tr>`;
     });
 
     tableHTML += `</tbody>
-        <tfoot class="bg-gray-50 font-bold">
+        <tfoot class="bg-gray-50 dark:bg-gray-700 font-bold text-gray-900 dark:text-white">
             <tr>
                 <td class="px-4 py-2 text-right text-sm">Total</td>
                 <td class="px-4 py-2 text-sm">${totalQty}</td>
-                <td class="px-4 py-2 text-sm"></td> <td class="px-4 py-2 text-sm">${formatRupiah(totalDiscount)}</td>
+                <td class="px-4 py-2 text-sm"></td>
+                <td class="px-4 py-2 text-sm">${formatRupiah(totalDiscount)}</td>
                 <td class="px-4 py-2 text-sm">${formatRupiah(totalSubtotal)}</td>
                 <td colspan="2" class="px-4 py-2 text-sm"></td> </tr>
         </tfoot>
@@ -125,13 +126,13 @@ export function closeSidebar() {
 
 export function showNotification(message, type) {
     elements.notification.textContent = message;
-    elements.notification.className = `p-4 rounded-md mb-6 ${type === 'success' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`;
+    elements.notification.className = `p-4 rounded-md mb-6 ${type === 'success' ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'}`;
     elements.notification.classList.remove('hidden');
     setTimeout(() => elements.notification.classList.add('hidden'), 5000);
 }
 
 export function showLoader(container) {
-    container.innerHTML = `<div class="flex justify-center items-center p-10"><svg class="animate-spin h-8 w-8 text-indigo-600" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg></div>`;
+    container.innerHTML = `<div class="flex justify-center items-center p-10"><svg class="animate-spin h-8 w-8 text-indigo-600 dark:text-indigo-400" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg></div>`;
 }
 
 export function openLookupModal(options) {
@@ -210,21 +211,21 @@ export function renderTableRows(tableBody, data, type) {
     const config = pageConfig[`#${type}`];
     data.forEach(item => {
         const isActive = item.IsActive == 1;
-        const statusHTML = `<span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${isActive ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}">${isActive ? 'Aktif' : 'Nonaktif'}</span>`;
+        const statusHTML = `<span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${isActive ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300' : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300'}">${isActive ? 'Aktif' : 'Nonaktif'}</span>`;
         const isActionable = !['penjualan', 'penerimaan', 'piutang', 'packinglist-barcode'].includes(type);
         let actions = '';
         const isLookupPage = ['materials', 'sizes', 'brands', 'models'].includes(type);
         if (type === 'packinglist-barcode') {
             actions = `<td data-label="Aksi" class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                ${can('W', 'packinglist-barcode') ? `<button class="text-red-600 hover:text-red-900 delete-packinglist-btn" data-barcode="${item.Barcode}">Hapus</button>` : ''}
+                ${can('W', 'packinglist-barcode') ? `<button class="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300 delete-packinglist-btn" data-barcode="${item.Barcode}">Hapus</button>` : ''}
             </td>`;
         } else if (isLookupPage || type === 'items') {
             actions = `<td data-label="Aksi" class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                ${isSuperAdmin() ? `<button class="text-gray-500 hover:text-gray-800 toggle-active-btn" data-id="${item.Id}" title="${isActive ? 'Nonaktifkan' : 'Aktifkan'}">${isActive ? 'Nonaktifkan' : 'Aktifkan'}</button>` : ''}
-                ${can('W', 'items') && type === 'items' ? `<button class="text-indigo-600 hover:text-indigo-900 ml-4 edit-item-btn" data-id="${item.Id}">Edit</button>` : ''}
-                ${can('W', type) && isLookupPage ? `<button class="text-indigo-600 hover:text-indigo-900 ml-4 edit-lookup-btn" data-id="${item.Id}" data-name="${item.Name}">Edit</button>` : ''}
-                ${can('D', type) ? `<button class="text-red-600 hover:text-red-900 ml-4 delete-btn" data-id="${item.Id}">Hapus</button>` : ''}
-                ${can('P', 'items') && type === 'items' ? `<a href="/print/barcode/${item.Id}" target="_blank" class="text-green-600 hover:text-green-900 ml-4">Cetak Barcode</a>` : ''}
+                ${isSuperAdmin() ? `<button class="text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-200 toggle-active-btn" data-id="${item.Id}" title="${isActive ? 'Nonaktifkan' : 'Aktifkan'}">${isActive ? 'Nonaktifkan' : 'Aktifkan'}</button>` : ''}
+                ${can('W', 'items') && type === 'items' ? `<button class="text-indigo-600 hover:text-indigo-900 dark:text-indigo-400 dark:hover:text-indigo-300 ml-4 edit-item-btn" data-id="${item.Id}">Edit</button>` : ''}
+                ${can('W', type) && isLookupPage ? `<button class="text-indigo-600 hover:text-indigo-900 dark:text-indigo-400 dark:hover:text-indigo-300 ml-4 edit-lookup-btn" data-id="${item.Id}" data-name="${item.Name}">Edit</button>` : ''}
+                ${can('D', type) ? `<button class="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300 ml-4 delete-btn" data-id="${item.Id}">Hapus</button>` : ''}
+                ${can('P', 'items') && type === 'items' ? `<a href="/print/barcode/${item.Id}" target="_blank" class="text-green-600 hover:text-green-900 dark:text-green-400 dark:hover:text-green-300 ml-4">Cetak Barcode</a>` : ''}
             </td>`;
         }
         let rowData = '';
@@ -237,16 +238,16 @@ export function renderTableRows(tableBody, data, type) {
             } else {
                 cellValue = item[col.key] || '-';
             }
-            rowData += `<td data-label="${col.label}" class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">${cellValue}</td>`;
+            rowData += `<td data-label="${col.label}" class="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300">${cellValue}</td>`;
         });
         const newRow = document.createElement('tr');
         if (type === 'packinglist-riwayat') {
-            newRow.classList.add('cursor-pointer', 'hover:bg-gray-50', 'packinglist-row-clickable');
+            newRow.classList.add('cursor-pointer', 'hover:bg-gray-50', 'dark:hover:bg-gray-700', 'packinglist-row-clickable');
             newRow.dataset.idno = item.IDNo;
             newRow.dataset.headerData = JSON.stringify(item);
         }
         if (type === 'penjualan') {
-            newRow.classList.add('cursor-pointer', 'hover:bg-gray-50', 'sales-row-clickable');
+            newRow.classList.add('cursor-pointer', 'hover:bg-gray-50', 'dark:hover:bg-gray-700', 'sales-row-clickable');
             newRow.dataset.activityId = item.Id;
         }
         newRow.innerHTML = rowData + actions;
@@ -290,39 +291,39 @@ export function renderPackingListDetail(details, headerData) {
     const contentContainer = elements.salesDetailContent;
 
     let headerHTML = `
-        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4 text-sm border-b pb-3">
-            <div><strong>ID:</strong> ${headerData.IDNo || '-'}</div>
-            <div><strong>Customer:</strong> ${headerData.CustomerName || '-'}</div>
-            <div><strong>No. DO:</strong> ${headerData.DONo || '-'}</div>
-            <div><strong>No. WO:</strong> ${headerData.WONo || '-'}</div>
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4 text-sm border-b pb-3 dark:border-gray-700 text-gray-800 dark:text-gray-300">
+            <div><strong class="font-semibold">ID:</strong> ${headerData.IDNo || '-'}</div>
+            <div><strong class="font-semibold">Customer:</strong> ${headerData.CustomerName || '-'}</div>
+            <div><strong class="font-semibold">No. DO:</strong> ${headerData.DONo || '-'}</div>
+            <div><strong class="font-semibold">No. WO:</strong> ${headerData.WONo || '-'}</div>
         </div>
     `;
 
     if (!details || details.length === 0) {
-        contentContainer.innerHTML = headerHTML + '<p class="text-center text-gray-500">Tidak ada item detail untuk packing list ini.</p>';
+        contentContainer.innerHTML = headerHTML + '<p class="text-center text-gray-500 dark:text-gray-400">Tidak ada item detail untuk packing list ini.</p>';
         return;
     }
 
     const headers = ['InvId', 'Size', 'Color', 'Qty'];
-    let tableHTML = `<div class="responsive-table-container"><table class="min-w-full divide-y divide-gray-200">
-        <thead class="bg-gray-50"><tr>
-            ${headers.map(h => `<th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">${h}</th>`).join('')}
+    let tableHTML = `<div class="responsive-table-container"><table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+        <thead class="bg-gray-50 dark:bg-gray-700"><tr>
+            ${headers.map(h => `<th class="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">${h}</th>`).join('')}
         </tr></thead>
-        <tbody class="bg-white divide-y divide-gray-200">`;
+        <tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">`;
 
     let totalQty = 0;
     details.forEach(item => {
         totalQty += parseInt(item.Qty, 10) || 0;
         tableHTML += `<tr>
-            <td data-label="InvId" class="px-4 py-2 text-sm">${item.InvId || '-'}</td>
-            <td data-label="Size" class="px-4 py-2 text-sm">${item.Size || '-'}</td>
-            <td data-label="Color" class="px-4 py-2 text-sm">${item.Color || '-'}</td>
-            <td data-label="Qty" class="px-4 py-2 text-sm">${item.Qty || 0}</td>
+            <td data-label="InvId" class="px-4 py-2 text-sm text-gray-800 dark:text-gray-300">${item.InvId || '-'}</td>
+            <td data-label="Size" class="px-4 py-2 text-sm text-gray-800 dark:text-gray-300">${item.Size || '-'}</td>
+            <td data-label="Color" class="px-4 py-2 text-sm text-gray-800 dark:text-gray-300">${item.Color || '-'}</td>
+            <td data-label="Qty" class="px-4 py-2 text-sm text-gray-800 dark:text-gray-300">${item.Qty || 0}</td>
         </tr>`;
     });
 
     tableHTML += `</tbody>
-        <tfoot class="bg-gray-50 font-bold">
+        <tfoot class="bg-gray-50 dark:bg-gray-700 font-bold text-gray-900 dark:text-white">
             <tr>
                 <td colspan="3" class="px-4 py-2 text-right text-sm">Total Kuantitas</td>
                 <td class="px-4 py-2 text-sm">${totalQty}</td>
