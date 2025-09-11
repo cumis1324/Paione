@@ -4,8 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Paione - Panel All In One Jasiva</title>
+    
     <link rel="manifest" href="/manifest.json">
     <meta name="theme-color" content="#2d3748">
+
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <link rel="preconnect" href="https://rsms.me/">
@@ -14,94 +16,92 @@
         :root { font-family: 'Inter', sans-serif; }
         @supports (font-variation-settings: normal) { :root { font-family: 'Inter var', sans-serif; } }
         .barcode-font { font-family: 'Libre Barcode 39', cursive; font-size: 3rem; }
-        /* --- DARK MODE --- */
-        html.dark, body.dark {
-            background-color: #1a202c !important;
-            color: #f7fafc !important;
+
+        /* --- PERBAIKAN RESPONSIVE DIMULAI DI SINI --- */
+
+        /* Transisi halus untuk sidebar dan main content */
+        #sidebar-container, #main-content {
+            transition: all 0.3s ease-in-out;
         }
-        html.dark #sidebar-container, body.dark #sidebar-container {
-            background-color: #2d3748;
-            color: #f7fafc;
+
+        /* 1. Logika untuk Sidebar Terbuka (Mobile-first) */
+        /* Secara default, saat sidebar terbuka, ia akan overlay konten */
+        body.sidebar-is-open #sidebar-container {
+            transform: translateX(0);
         }
-        html.dark #main-content, body.dark #main-content {
-            background-color: #1a202c;
-            color: #f7fafc;
+        body.sidebar-is-open #sidebar-overlay {
+            display: block;
         }
-        html.dark header, body.dark header {
-            background-color: #2d3748;
-            color: #f7fafc;
+
+        /* 2. Logika untuk Layar Desktop (md: 768px ke atas) */
+        @media (min-width: 768px) {
+            /* Saat sidebar terbuka di desktop, geser main-content ke kanan */
+            body.sidebar-is-open #main-content {
+            margin-left: 16rem; /* 64 unit Tailwind */
+            }
+
+            /* Saat sidebar tertutup di desktop, main-content kembali ke posisi semula */
+            body:not(.sidebar-is-open) #main-content {
+                margin-left: 0;
+            }
+
+            /* Di desktop, sidebar-overlay tidak diperlukan, jadi selalu sembunyikan */
+            #sidebar-overlay {
+                display: none;
+            }
         }
-        html.dark .bg-white, body.dark .bg-white {
-            background-color: #2d3748 !important;
-            color: #f7fafc !important;
+        /* --- CSS UNTUK TABEL RESPONSIVE --- */
+        @media (max-width: 768px) {
+            .responsive-table-container table {
+                border: 0;
+            }
+            .responsive-table-container thead {
+                display: none;
+            }
+            .responsive-table-container tr {
+                display: block;
+                margin-bottom: 1rem;
+                border-bottom: 2px solid #ddd;
+            }
+            .responsive-table-container td {
+                display: block;
+                text-align: right;
+                padding-left: 50%;
+                position: relative;
+            }
+            .responsive-table-container td::before {
+                content: attr(data-label);
+                position: absolute;
+                left: 0;
+                width: 50%;
+                padding-left: 1rem;
+                font-weight: bold;
+                text-align: left;
+            }
+            .responsive-table-container td:last-child {
+                text-align: left;
+                padding-left: 1rem;
+            }
+             .responsive-table-container td:last-child::before {
+                content: ""; /* Sembunyikan label untuk kolom aksi */
+            }
         }
-        html.dark .text-gray-900, body.dark .text-gray-900 {
-            color: #f7fafc !important;
-        }
-        html.dark .bg-gray-100, body.dark .bg-gray-100 {
-            background-color: #1a202c !important;
-        }
-        html.dark .bg-gray-800, body.dark .bg-gray-800 {
-            background-color: #2d3748 !important;
-        }
-        html.dark .border-gray-700, body.dark .border-gray-700 {
-            border-color: #4a5568 !important;
-        }
-        html.dark .bg-red-600, body.dark .bg-red-600 {
-            background-color: #c53030 !important;
-        }
-        html.dark .bg-indigo-600, body.dark .bg-indigo-600 {
-            background-color: #5a67d8 !important;
-        }
-        html.dark .bg-gray-200, body.dark .bg-gray-200 {
-            background-color: #4a5568 !important;
-        }
-        html.dark .hover\:bg-gray-700:hover, body.dark .hover\:bg-gray-700:hover {
-            background-color: #4a5568 !important;
-        }
-        html.dark .hover\:bg-gray-100:hover, body.dark .hover\:bg-gray-100:hover {
-            background-color: #2d3748 !important;
-        }
-        html.dark .hover\:bg-indigo-500:hover, body.dark .hover\:bg-indigo-500:hover {
-            background-color: #434190 !important;
-        }
-        html.dark .hover\:bg-red-500:hover, body.dark .hover\:bg-red-500:hover {
-            background-color: #9b2c2c !important;
-        }
-        /* --- END DARK MODE --- */
-        /* ...CSS Anda yang lain tetap... */
+        
+        /* --- AKHIR PERBAIKAN --- */
     </style>
     <script type="module" src="{{ url_for('static', filename='js/main.js') }}"></script>
 </head>
 <body class="h-full" data-username="{{ username }}">
-    <div class="relative flex h-full"></div>
-        <!-- ...sidebar... -->
-        <div id="main-content" class="flex-1 flex flex-col">
-            <header class="bg-white shadow-sm">
-                <div class="mx-auto max-w-7xl px-4 py-3 sm:px-6 lg:px-8 flex items-center justify-between">
-                    <div class="flex items-center">
-                        <button id="hamburger-btn" class="p-2 mr-2 text-gray-500 rounded-md hover:text-gray-700 hover:bg-gray-100">
-                            <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" /></svg>
-                        </button>
-                        <div class="flex items-center gap-x-3"></div>
-                            <img class="h-10 w-auto" src="./static/icons/icon-192x192.png" alt="Logo Perusahaan" onerror="this.onerror=null;this.src='https://placehold.co/120x40?text=Logo';">
-                            <span class="font-bold text-xl text-gray-800 hidden sm:block">Jasiva Guna Garmindo</span>
-                        </div>
-                    </div>
-                    <div class="flex items-center gap-x-4">
-                        <h1 id="page-title" class="text-lg font-semibold leading-6 text-gray-900 text-right truncate">Dashboard</h1>
-                        <!-- Dark mode switch -->
-                        <button id="dark-mode-toggle" class="ml-4 flex items-center px-2 py-1 rounded-md border border-gray-300 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:border-gray-600 dark:text-white dark:hover:bg-gray-600 transition"></button>
-                            <svg id="dark-mode-icon" class="h-5 w-5 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"></svg>
-                                <path id="sun-icon" class="block" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m8.66-8.66l-.71.71M4.05 4.05l-.71.71M21 12h-1M4 12H3m16.66 4.66l-.71-.71M4.05 19.95l-.71-.71M12 7a5 5 0 100 10 5 5 0 000-10z" />
-                                <path id="moon-icon" class="hidden" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12.79A9 9 0 1111.21 3a7 7 0 109.79 9.79z" />
-                            </svg>
-                            <span id="dark-mode-label" class="text-sm">Dark</span>
-                        </button>
-                    </div>
+    <div class="relative flex h-full">
+        <div id="sidebar-container" class="fixed inset-y-0 left-0 z-40 flex w-64 transform transition-transform duration-300 ease-in-out -translate-x-full">
+            <div class="flex flex-col flex-1 bg-gray-800 text-white">
+                <div class="flex items-center justify-between h-16 border-b border-gray-700 px-4">
+                    <h1 class="text-xl font-bold">Jasiva Guna Garmindo</h1>
+                    <button id="sidebar-close-btn" class="p-2 text-white">
+                        <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
+                    </button>
                 </div>
-            </header>
-            <main class="flex-1 p-6 overflow-y-auto"></main>
+                
                  <nav id="sidebar-nav" class="flex-1 p-4 space-y-2">
                     <a href="#analytics" data-permission="RA" class="nav-link flex items-center px-4 py-2 rounded-md hover:bg-gray-700">Home</a>
                     <a href="#factory-analytics" data-permission="RA" class="nav-link flex items-center px-4 py-2 rounded-md hover:bg-gray-700">Penjualan Pabrik</a>
