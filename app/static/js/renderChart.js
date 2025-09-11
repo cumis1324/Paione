@@ -139,15 +139,15 @@ export async function renderTimeSeriesChart(startDate, endDate, mode = 'daily', 
             values = labels.map((label, idx) => {
                 const jam = idx + 6;
                 const jamData = data.timeseries.find(ts => parseInt(ts.hour) === jam);
-                return jamData ? jamData.total_penjualan : 0;
+                return jamData ? parseFloat(jamData.total_penjualan) : 0;
             });
         } else {
             values = Array(10).fill(0);
         }
     } else {
-        if (data && data.timeseries && Array.isArray(data.timeseries)) {
-            labels = data.timeseries.map(ts => ts.label);
-            values = data.timeseries.map(ts => ts.total_penjualan);
+        if (data && data.data && Array.isArray(data.data)) {
+            labels = data.data.map(ts => new Date(ts.tanggal + 'T00:00:00').toLocaleDateString('id-ID', { day: 'numeric', month: 'short' }));
+            values = data.data.map(ts => parseFloat(ts.total_penjualan));
         }
     }
 

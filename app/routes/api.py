@@ -1184,8 +1184,21 @@ def get_factory_sales_by_range():
             WHERE CAST(InvDate AS DATE) BETWEEN ? AND ?
         """
         cursor.execute(query, start_date_str, end_date_str)
-        
         result = cursor.fetchone()
+        
+        # Ambil 10 penjualan terbaru
+        recent_query = """
+            SELECT TOP 10
+                InvNo,
+                CONVERT(VARCHAR, InvDate, 105) + ' ' + LEFT(CONVERT(VARCHAR, InvDate, 108), 5) as Waktu,
+                Customer,
+                Amount
+            FROM dbo.ViewSalesReportExt
+            WHERE CAST(InvDate AS DATE) BETWEEN ? AND ?
+            ORDER BY InvDate DESC
+        """
+        cursor.execute(recent_query, start_date_str, end_date_str)
+        recent_results = [dict(zip([column[0] for column in cursor.description], row)) for row in cursor.fetchall()]
         
         # --- PERBAIKAN UTAMA DI SINI ---
         # Periksa apakah query mengembalikan hasil. Jika tidak, artinya tidak ada penjualan.
@@ -1202,8 +1215,13 @@ def get_factory_sales_by_range():
                 'total_lusin': '0'
             }
         # --- AKHIR PERBAIKAN ---
+        
+        # Format desimal di data penjualan terbaru
+        for row in recent_results:
+            if isinstance(row.get('Amount'), decimal.Decimal):
+                row['Amount'] = str(row['Amount'])
 
-        return jsonify({"status": "success", "data": {"total": summary}})
+        return jsonify({"status": "success", "data": {"total": summary, "recent": recent_results}})
 
     except Exception as e: # Tangkap semua jenis error untuk penanganan yang lebih baik
         return jsonify({"status": "error", "message": f"Terjadi kesalahan internal: {str(e)}"}), 500

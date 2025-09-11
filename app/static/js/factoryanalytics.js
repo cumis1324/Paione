@@ -92,6 +92,7 @@ function renderFactoryReportContent() {
             ${timeSeriesChartContainer}
             <div id="factory-sales-chart-container" class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow"><div style="height: 350px;"><canvas id="factorySalesComparisonChart"></canvas></div></div>
             <div id="factory-quantity-chart-container" class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow"><div style="height: 350px;"><canvas id="factoryQuantityComparisonChart"></canvas></div></div>
+            <div id="factory-recent-activity-card" class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow col-span-1 lg:col-span-2"></div>
         </div>
     `;
     updateFactoryPeriodDisplay();
@@ -113,6 +114,31 @@ function renderFactorySummaryCard(data) {
         </div>`;
 }
 
+// Aktivitas Penjualan Pabrik Terbaru
+function renderFactoryRecentActivity(data) {
+    const container = document.getElementById('factory-recent-activity-card');
+    if (!container) return;
+    let tableHTML = `<h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Aktivitas Penjualan Pabrik</h3><div class="responsive-table-container"><table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700"><thead class="bg-gray-50 dark:bg-gray-700"><tr>
+        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Waktu</th>
+        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Customer</th>
+        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">No. Invoice</th>
+        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Total Harga</th>
+    </tr></thead><tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">`;
+    if (data.recent && data.recent.length > 0) {
+        data.recent.forEach(sale => {
+            tableHTML += `<tr>
+                <td data-label="Waktu" class="px-6 py-4 text-sm text-gray-800 dark:text-gray-300">${sale.Waktu || '-'}</td>
+                <td data-label="Customer" class="px-6 py-4 text-sm font-medium text-gray-800 dark:text-gray-300">${sale.Customer || '-'}</td>
+                <td data-label="No. Invoice" class="px-6 py-4 text-sm text-gray-800 dark:text-gray-300">${sale.InvNo || '-'}</td>
+                <td data-label="Total Harga" class="px-6 py-4 text-sm text-gray-800 dark:text-gray-300">${formatRupiah(sale.Amount)}</td>
+            </tr>`;
+        });
+    } else {
+        tableHTML += `<tr><td colspan="4" class="text-center py-4 text-gray-500 dark:text-gray-400">Tidak ada penjualan pada periode ini.</td></tr>`;
+    }
+    tableHTML += `</tbody></table></div>`;
+    container.innerHTML = tableHTML;
+}
 // Event listeners
 function setupFactoryAnalyticsEventListeners() {
     const contentArea = document.getElementById('factory-analytics-content-area');
@@ -202,12 +228,14 @@ async function fetchFactoryDataForPeriod(isCustom = false) {
     }
     
     showLoader(document.getElementById('factory-summary-card'));
+    showLoader(document.getElementById('factory-recent-activity-card'));
     destroyAllFactoryCharts();
 
     try {
         const result = await api.getFactoryAnalyticsByRange(start, end);
         if (result.status === 'success') {
             renderFactorySummaryCard(result.data);
+            renderFactoryRecentActivity(result.data);
             renderFactoryComparisonChart(start, end, factoryAnalyticsState.mode);
             if (factoryAnalyticsState.mode !== 'daily') {
                 renderFactoryTimeSeriesChart(start, end, result.data);

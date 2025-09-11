@@ -124,7 +124,7 @@ function renderSummaryCard(data) {
 function renderRecentActivity(data) {
     const container = document.getElementById('recent-activity-card');
     if (!container) return;
-    let tableHTML = `<h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Aktivitas Penjualan</h3><div class="overflow-x-auto"><table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700"><thead class="bg-gray-50 dark:bg-gray-700"><tr>
+    let tableHTML = `<h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Aktivitas Penjualan</h3><div class="responsive-table-container"><table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700"><thead class="bg-gray-50 dark:bg-gray-700"><tr>
         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Waktu</th>
         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Nama Pelanggan</th>
         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Cabang</th>
@@ -133,10 +133,10 @@ function renderRecentActivity(data) {
     if (data.recent && data.recent.length > 0) {
         data.recent.forEach(sale => {
             tableHTML += `<tr class="sales-row-clickable hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer" data-activity-id="${sale.Id}">
-                <td class="px-6 py-4 text-sm text-gray-800 dark:text-gray-300">${sale.Waktu || '-'}</td>
-                <td class="px-6 py-4 text-sm font-medium text-gray-800 dark:text-gray-300">${sale.Name || '-'}</td>
-                <td class="px-6 py-4 text-sm text-gray-800 dark:text-gray-300">${sale.Cabang || '-'}</td>
-                <td class="px-6 py-4 text-sm text-gray-800 dark:text-gray-300">${formatRupiah(sale.TotalPrice)}</td>
+                <td data-label="Waktu" class="px-6 py-4 text-sm text-gray-800 dark:text-gray-300">${sale.Waktu || '-'}</td>
+                <td data-label="Nama Pelanggan" class="px-6 py-4 text-sm font-medium text-gray-800 dark:text-gray-300">${sale.Name || '-'}</td>
+                <td data-label="Cabang" class="px-6 py-4 text-sm text-gray-800 dark:text-gray-300">${sale.Cabang || '-'}</td>
+                <td data-label="Total Harga" class="px-6 py-4 text-sm text-gray-800 dark:text-gray-300">${formatRupiah(sale.TotalPrice)}</td>
             </tr>`;
         });
     } else {
@@ -282,13 +282,14 @@ async function fetchDataForPeriod(isCustom = false) {
             renderRecentActivity(result.data);
             renderComparisonChart(start, end, analyticsState.mode);
 
-            // --- MODIFIKASI DI SINI ---
             if (analyticsState.mode === 'daily') {
                 // Ambil timeseries per jam dari API khusus
                 const timeseriesResult = await api.getAnalyticsTimeseriesHourly(start);
                 renderTimeSeriesChart(start, end, analyticsState.mode, timeseriesResult);
             } else {
-                renderTimeSeriesChart(start, end, analyticsState.mode, result.data);
+                // Ambil timeseries harian untuk rentang waktu
+                const timeseriesResult = await api.getAnalyticsTimeSeries(start, end);
+                renderTimeSeriesChart(start, end, analyticsState.mode, timeseriesResult);
             }
         } else {
             throw new Error(result.message);
