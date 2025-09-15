@@ -123,7 +123,7 @@ def get_data(data_type):
 
             # 1. Query hitung total baris (tidak berubah)
             count_query = f"SELECT COUNT({count_field}) {query_base} {where_clause}"
-            cursor.execute(count_query, params)
+            cursor.execute(count_query, params if search_query else [])
             total_records = cursor.fetchone()[0]
 
             # 2. Query untuk mendapatkan data menggunakan ROW_NUMBER()
@@ -204,9 +204,9 @@ def get_data(data_type):
             where_clauses = ["a.Type = 'SalesOrder'"]
             
             if search_query:
-                where_clauses.append("(s.Name LIKE %s OR a.Name LIKE %s OR a.Phone LIKE %s)")
+                where_clauses.append("(s.Name LIKE %s OR a.Name LIKE %s OR a.Phone LIKE %s OR b.Name LIKE %s)")
                 search_term = f"%{search_query}%"
-                params.extend([search_term, search_term, search_term])
+                params.extend([search_term, search_term, search_term, search_term])
             
             start_date = request.args.get('start_date')
             end_date = request.args.get('end_date')
@@ -344,7 +344,8 @@ def get_penjualan_header(activity_id):
             SELECT
                 DATE_FORMAT(a.Date, '%%y%%m%%d%%H%%i%%s') as Nomor,
                 a.Name,
-                b.Name as Cabang
+                b.Name as Cabang,
+                a.PaymentType as Pembayaran
             FROM activities a
             LEFT JOIN branches b ON a.BranchId = b.Id
             WHERE a.Id = %s
@@ -415,16 +416,36 @@ def toggle_active_status(data_type, item_id):
 def get_item_details(item_id):
     try:
         cur = mysql.connection.cursor()
-        cur.execute("SELECT Name, Price, Serial, MaterialId, SizeId, BrandId, ModelId FROM items WHERE Id = %s", [item_id])
+        query = """
+            SELECT 
+                i.Id, i.Barcode, i.Name, i.Serial, 
+                m.Name as MaterialName, s.Name as SizeName, 
+                b.Name as BrandName, mo.Name as ModelName, 
+                i.Price, i.IsActive, i.CreatedDate, 
+                i.MaterialId, i.SizeId, i.BrandId, i.ModelId 
+            FROM items i 
+            LEFT JOIN materials m ON i.MaterialId = m.Id 
+            LEFT JOIN sizes s ON i.SizeId = s.Id 
+            LEFT JOIN brands b ON i.BrandId = b.Id 
+            LEFT JOIN models mo ON i.ModelId = mo.Id
+            WHERE i.Id = %s
+        """
+        cur.execute(query, [item_id])
         item = cur.fetchone()
         cur.close()
         if not item: return jsonify({"status": "error", "message": "Item tidak ditemukan"}), 404
         
         for key, value in item.items():
             if isinstance(value, bytes):
-                item[key] = value.decode('utf-8')
+                # Konversi khusus untuk kolom IsActive (TINYINT)
+                if key == 'IsActive':
+                    item[key] = 1 if value == b'\x01' else 0
+                else:
+                    item[key] = value.decode('utf-8')
             elif isinstance(value, decimal.Decimal):
                 item[key] = str(value)
+            elif isinstance(value, datetime):
+                item[key] = value.strftime('%Y-%m-%d %H:%M:%S')
 
         return jsonify({"status": "success", "data": item})
     except Exception as e:
@@ -589,6 +610,35 @@ def add_item():
     finally:
         if conn_sql: conn_sql.close()
         if cur: cur.close()
+
+@api_bp.route('/data/lookup/<data_type>/<item_id>', methods=['GET'])
+@login_required
+def get_lookup_item_details(data_type, item_id):
+    # Validasi untuk keamanan
+    table_map = {'materials': 'materials', 'sizes': 'sizes', 'brands': 'brands', 'models': 'models'}
+    table_name = table_map.get(data_type)
+    if not table_name:
+        return jsonify({"status": "error", "message": "Tipe data tidak valid"}), 400
+    
+    # Cek izin baca
+    perm_code = permission_map.get(data_type, {}).get('R')
+    if not perm_code or perm_code not in session.get('permissions', []):
+        return jsonify({"status": "error", "message": "Akses ditolak."}), 403
+
+    try:
+        cur = mysql.connection.cursor()
+        cur.execute(f"SELECT Id, Name, IsActive FROM {table_name} WHERE Id = %s", [item_id])
+        item = cur.fetchone()
+        cur.close()
+        if not item:
+            return jsonify({"status": "error", "message": "Item tidak ditemukan"}), 404
+        
+        if isinstance(item.get('IsActive'), bytes):
+            item['IsActive'] = 1 if item['IsActive'] == b'\x01' else 0
+            
+        return jsonify({"status": "success", "data": item})
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
 
 @api_bp.route('/add-lookup-item', methods=['POST'])
 @login_required
@@ -1188,13 +1238,22 @@ def get_factory_sales_by_range():
         
         # Ambil 10 penjualan terbaru
         recent_query = """
+            WITH InvoiceTotals AS (
+                SELECT
+                    InvNo,
+                    Customer,
+                    MIN(InvDate) as InvDate,
+                    SUM(Amount) as TotalAmount
+                FROM dbo.ViewSalesReportExt
+                WHERE CAST(InvDate AS DATE) BETWEEN ? AND ?
+                GROUP BY InvNo, Customer
+            )
             SELECT TOP 10
                 InvNo,
                 CONVERT(VARCHAR, InvDate, 105) + ' ' + LEFT(CONVERT(VARCHAR, InvDate, 108), 5) as Waktu,
                 Customer,
-                Amount
-            FROM dbo.ViewSalesReportExt
-            WHERE CAST(InvDate AS DATE) BETWEEN ? AND ?
+                TotalAmount as Amount
+            FROM InvoiceTotals
             ORDER BY InvDate DESC
         """
         cursor.execute(recent_query, start_date_str, end_date_str)
@@ -1229,6 +1288,43 @@ def get_factory_sales_by_range():
         if conn_sql:
             conn_sql.close()
 
+@api_bp.route('/factory-sales/detail/<inv_no>')
+@login_required
+@permission_required('RA')
+def get_factory_sale_detail(inv_no):
+    conn_sql = get_jbbdata_sql_server_connection()
+    if not conn_sql:
+        return jsonify({"status": "error", "message": "Gagal terhubung ke database Pabrik."}), 503
+    try:
+        cursor = conn_sql.cursor()
+        
+        # Query untuk detail item
+        detail_query = """
+            SELECT
+                InvName as Name,
+                Size,
+                Qty,
+                Up as HargaQty,
+                Amount
+            FROM dbo.ViewSalesReportExt
+            WHERE InvNo = ?
+            ORDER BY InvName, Size
+        """
+        cursor.execute(detail_query, inv_no)
+        details = [dict(zip([column[0] for column in cursor.description], row)) for row in cursor.fetchall()]
+        
+        # Format desimal ke string
+        for row in details:
+            for key, value in row.items():
+                if isinstance(value, decimal.Decimal):
+                    row[key] = str(value)
+
+        return jsonify({"status": "success", "data": details})
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
+    finally:
+        if conn_sql:
+            conn_sql.close()
 @api_bp.route('/analytics/factory-timeseries')
 @login_required
 @permission_required('RA')

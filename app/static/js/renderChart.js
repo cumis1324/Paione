@@ -16,11 +16,19 @@ let factoryTimeSeriesChart = null;
 // --- FUNGSI UNTUK ANALITIK TOKO ---
 
 export function destroyAllCharts() {
-    if (salesComparisonChart) salesComparisonChart.destroy();
-    if (quantityComparisonChart) quantityComparisonChart.destroy();
-    if (paymentComparisonChart) paymentComparisonChart.destroy();
-    if (timeSeriesChart) timeSeriesChart.destroy();
-     if (timeSeriesChart) {
+    if (salesComparisonChart) {
+        salesComparisonChart.destroy();
+        salesComparisonChart = null;
+    }
+    if (quantityComparisonChart) {
+        quantityComparisonChart.destroy();
+        quantityComparisonChart = null;
+    }
+    if (paymentComparisonChart) {
+        paymentComparisonChart.destroy();
+        paymentComparisonChart = null;
+    }
+    if (timeSeriesChart) {
         timeSeriesChart.destroy();
         timeSeriesChart = null;
     }
@@ -111,7 +119,7 @@ export async function renderComparisonChart(currentStartDate, currentEndDate, mo
         );
 
         paymentComparisonChart = renderSingleChart(
-            'paymentComparisonChart', 'bar', ['Lunas', 'Belum Lunas', 'Tidak Diketahui'], `Perbandingan Status Pembayaran`,
+            'paymentComparisonChart', 'bar', ['EDC, CASH, TRANSFER', 'DEBT', 'Tidak Diketahui'], `Perbandingan Status Pembayaran`,
             { label: prevLabel, data: [parseFloat(prevData.lunas || 0), parseFloat(prevData.belum_lunas || 0), parseFloat(prevData.tidak_diketahui || 0)] },
             {
                 label: currentLabel, data: [parseFloat(currentData.lunas || 0), parseFloat(currentData.belum_lunas || 0), parseFloat(currentData.tidak_diketahui || 0)],
@@ -151,7 +159,7 @@ export async function renderTimeSeriesChart(startDate, endDate, mode = 'daily', 
         }
     }
 
-    renderLineChart('timeSeriesChart', labels, values);
+    timeSeriesChart = renderLineChart('timeSeriesChart', labels, values, 'Tren Penjualan Toko');
 }
 
 // --- FUNGSI HELPER YANG DIPERBARUI & FUNGSI BARU UNTUK PABRIK ---
@@ -190,32 +198,29 @@ function renderSingleChart(canvasId, type, labels, title, prevDataset, currentDa
     });
 }
 
-export function renderLineChart(canvasId, labels, values) {
-    const ctx = document.getElementById(canvasId).getContext('2d');
+export function renderLineChart(canvasId, labels, values, titleText = 'Tren Penjualan') {
+    const canvas = document.getElementById(canvasId);
+    if (!canvas) return null;
+    const ctx = canvas.getContext('2d');
     const isDarkMode = document.documentElement.classList.contains('dark');
     const textColor = isDarkMode ? 'rgba(229, 231, 235, 0.8)' : 'rgba(107, 114, 128, 1)';
-    if (window.timeSeriesChart && typeof window.timeSeriesChart.destroy === 'function') {
-        window.timeSeriesChart.destroy();
-        window.timeSeriesChart = null;
-    }
-    window.timeSeriesChart = new Chart(ctx, {
+
+    return new Chart(ctx, {
         type: 'line',
         data: {
             labels: labels,
             datasets: [{
                 label: 'Total Penjualan',
                 data: values,
-                fill: true,
-                borderColor: 'rgb(75, 192, 192)',
-                backgroundColor: 'rgba(75, 192, 192, 0.2)',
-                tension: 0.1
+                fill: true, borderColor: 'rgb(75, 192, 192)',
+                backgroundColor: 'rgba(75, 192, 192, 0.2)', tension: 0.1
             }]
         },
         options: {
             responsive: true, maintainAspectRatio: false,
             plugins: { 
                 legend: { display: false }, 
-                title: { display: true, text: 'Tren Penjualan per Hari', color: textColor } 
+                title: { display: true, text: titleText, color: textColor } 
             },
             scales: { 
                 y: { beginAtZero: true, ticks: { callback: (value) => 'Rp ' + new Intl.NumberFormat('id-ID').format(value), color: textColor }, grid: { color: isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)' } },
@@ -281,7 +286,7 @@ export async function renderFactoryTimeSeriesChart(startDate, endDate) {
         const labels = data.map(d => new Date(d.tanggal+'T00:00:00').toLocaleDateString('id-ID', {day: 'numeric', month: 'short'}));
         const values = data.map(d => parseFloat(d.total_penjualan));
         
-        factoryTimeSeriesChart = renderLineChart('factoryTimeSeriesChart', labels, values);
+        factoryTimeSeriesChart = renderLineChart('factoryTimeSeriesChart', labels, values, 'Tren Penjualan Pabrik');
 
     } catch(error) {
         console.error("Gagal membuat grafik time series pabrik:", error);

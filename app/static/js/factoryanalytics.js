@@ -1,5 +1,5 @@
 import { api } from "./api.js";
-import { formatRupiah, showLoader, showNotification } from './ui.js';
+import { formatRupiah, showLoader, showNotification, openSalesDetailModal, setSalesDetailModalTitle } from './ui.js';
 import { renderFactoryComparisonChart, renderFactoryTimeSeriesChart, destroyAllFactoryCharts, renderComparisonChart } from "./renderChart.js";
 import { analyticsState } from "./analytics.js";
 const appContent = document.getElementById('app-content');
@@ -126,11 +126,11 @@ function renderFactoryRecentActivity(data) {
     </tr></thead><tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">`;
     if (data.recent && data.recent.length > 0) {
         data.recent.forEach(sale => {
-            tableHTML += `<tr>
-                <td data-label="Waktu" class="px-6 py-4 text-sm text-gray-800 dark:text-gray-300">${sale.Waktu || '-'}</td>
-                <td data-label="Customer" class="px-6 py-4 text-sm font-medium text-gray-800 dark:text-gray-300">${sale.Customer || '-'}</td>
-                <td data-label="No. Invoice" class="px-6 py-4 text-sm text-gray-800 dark:text-gray-300">${sale.InvNo || '-'}</td>
-                <td data-label="Total Harga" class="px-6 py-4 text-sm text-gray-800 dark:text-gray-300">${formatRupiah(sale.Amount)}</td>
+            tableHTML += `<tr class="factory-sales-row-clickable hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer" data-invno="${sale.InvNo}">
+                <td data-label="Waktu" class="px-6 py-4 text-sm text-gray-800 dark:text-gray-300 break-words">${sale.Waktu || '-'}</td>
+                <td data-label="Customer" class="px-6 py-4 text-sm font-medium text-gray-800 dark:text-gray-300 break-words">${sale.Customer || '-'}</td>
+                <td data-label="No. Invoice" class="px-6 py-4 text-sm text-gray-800 dark:text-gray-300 break-words">${sale.InvNo || '-'}</td>
+                <td data-label="Total Harga" class="px-6 py-4 text-sm text-gray-800 dark:text-gray-300 break-words">${formatRupiah(sale.Amount)}</td>
             </tr>`;
         });
     } else {
@@ -139,6 +139,66 @@ function renderFactoryRecentActivity(data) {
     tableHTML += `</tbody></table></div>`;
     container.innerHTML = tableHTML;
 }
+
+function renderFactorySalesDetailInModal(details, header) {
+    const contentContainer = document.getElementById('sales-detail-content');
+
+    let headerHTML = `
+        <div class="grid grid-cols-2 md:grid-cols-3 gap-4 mb-4 text-sm text-gray-800 dark:text-gray-300">
+            <div><strong class="font-semibold">No. Invoice:</strong> ${header.InvNo || '-'}</div>
+            <div class="md:col-span-2"><strong class="font-semibold">Customer:</strong> ${header.Customer || '-'}</div>
+        </div>
+    `;
+
+    if (!details || details.length === 0) {
+        contentContainer.innerHTML = headerHTML + '<p class="text-center text-gray-500 dark:text-gray-400">Tidak ada item detail untuk penjualan ini.</p>';
+        return;
+    }
+
+    const headers = ['Nama Barang', 'Ukuran', 'Qty', 'Harga/Qty', 'Jumlah'];
+    let tableHTML = `<div class="responsive-table-container"><table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+        <thead class="bg-gray-50 dark:bg-gray-700"><tr>
+            ${headers.map(h => `<th class="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">${h}</th>`).join('')}
+        </tr></thead>
+        <tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">`;
+
+    let totalQty = 0;
+    let totalAmount = 0;
+
+    details.forEach(item => {
+        totalQty += parseFloat(item.Qty) || 0;
+        totalAmount += parseFloat(item.Amount) || 0;
+
+        tableHTML += `<tr>
+            <td data-label="Nama Barang" class="px-4 py-2 text-sm text-gray-800 dark:text-gray-300 break-words">${item.Name || '-'}</td>
+            <td data-label="Ukuran" class="px-4 py-2 text-sm text-gray-800 dark:text-gray-300 break-words">${item.Size || '-'}</td>
+            <td data-label="Qty" class="px-4 py-2 text-sm text-gray-800 dark:text-gray-300 break-words">${item.Qty || 0}</td>
+            <td data-label="Harga/Qty" class="px-4 py-2 text-sm text-gray-800 dark:text-gray-300 break-words">${formatRupiah(item.HargaQty)}</td>
+            <td data-label="Jumlah" class="px-4 py-2 text-sm text-gray-800 dark:text-gray-300 break-words">${formatRupiah(item.Amount)}</td>
+        </tr>`;
+    });
+
+    tableHTML += `</tbody>
+        <tfoot class="bg-gray-50 dark:bg-gray-700 font-bold text-gray-900 dark:text-white">
+            <tr>
+                <td colspan="2" class="px-4 py-2 text-right text-sm">Total</td>
+                <td class="px-4 py-2 text-sm">${totalQty}</td>
+                <td class="px-4 py-2 text-sm"></td>
+                <td class="px-4 py-2 text-sm">${formatRupiah(totalAmount)}</td>
+            </tr>
+        </tfoot>
+    </table></div>`;
+    
+    contentContainer.innerHTML = headerHTML + tableHTML;
+}
+
+async function handleShowFactorySalesDetail(invNo, customerName) {
+    setSalesDetailModalTitle(`Detail Penjualan Pabrik: ${customerName}`);
+    openSalesDetailModal();
+    const result = await api.getFactorySalesDetail(invNo);
+    renderFactorySalesDetailInModal(result.data, { InvNo: invNo, Customer: customerName });
+}
+
 // Event listeners
 function setupFactoryAnalyticsEventListeners() {
     const contentArea = document.getElementById('factory-analytics-content-area');
@@ -160,6 +220,12 @@ function setupFactoryAnalyticsEventListeners() {
         }
         if (e.target.closest('#factory-fetch-custom-range')) {
             fetchFactoryDataForPeriod(true);
+        }
+        const factorySalesRow = e.target.closest('.factory-sales-row-clickable');
+        if (factorySalesRow) {
+            const invNo = factorySalesRow.dataset.invno;
+            const customerName = factorySalesRow.querySelector('[data-label="Customer"]').textContent;
+            handleShowFactorySalesDetail(invNo, customerName);
         }
     });
 

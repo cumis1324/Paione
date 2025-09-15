@@ -52,12 +52,11 @@ export const pageConfig = {
         type: 'penjualan',
         columns: [
             { key: 'Nomor', label: 'Nomor' }, { key: 'Cabang', label: 'Cabang' }, { key: 'Tanggal', label: 'Tanggal' },
-            { key: 'Salesman', label: 'Salesman' }, { key: 'Nama', label: 'Nama' }, { key: 'Daerah', label: 'Daerah' },
-            { key: 'Telepon', label: 'Telepon' }, { key: 'TotalPenjualanLusin', label: 'Total (Lusin)' },
+            { key: 'Nama', label: 'Nama' }, { key: 'Daerah', label: 'Daerah' },
+            { key: 'TotalPenjualanLusin', label: 'Total (Lusin)' },
             { key: 'TotalHargaPenjualan', label: 'Total Harga' }, { key: 'Pembayaran', label: 'Pembayaran' },
             { key: 'TanggalBayar', label: 'Tgl Bayar' }, { key: 'JatuhTempo', label: 'Jatuh Tempo' },
-            { key: 'KeteranganPembayaran', label: 'Ket. Pembayaran' }, { key: 'Bypass', label: 'Bypass?' },
-            { key: 'BypassDiterima', label: 'Bypass Diterima' }
+            { key: 'KeteranganPembayaran', label: 'Ket. Pembayaran' }
         ]
     },
     '#penerimaan': { 

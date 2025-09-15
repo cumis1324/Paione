@@ -44,3 +44,4 @@ sw.js
 # Ignore IDE files
 .vscode/
 .idea/
+.venv

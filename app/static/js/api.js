@@ -145,6 +145,15 @@ async function getAnalyticsTimeseriesHourly(dateString) {
     const response = await fetch(`/api/analytics/timeseries-hourly?date=${dateString}`);
     return await response.json();
 }
+async function getFactorySalesDetail(invNo) {
+    const response = await fetch(`/api/factory-sales/detail/${invNo}`);
+    return await response.json();
+}
+
+async function getLookupItemDetails(type, id) {
+    const response = await fetch(`/api/data/lookup/${type}/${id}`);
+    return await response.json();
+}
 export const api = {
     fetchData,
     getFormData,
@@ -168,5 +177,7 @@ export const api = {
     updateSetting,
     calculatePayrollChecksum,
     getFactoryAnalyticsByRange,
-    getFactoryAnalyticsTimeSeries
+    getFactoryAnalyticsTimeSeries,
+    getFactorySalesDetail,
+    getLookupItemDetails
 };

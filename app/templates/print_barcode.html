@@ -102,7 +102,7 @@
                     {{ item.SizeName }}
                 </div>
                 <div class="serial">
-                    {{ item.Serial }}
+                    {{ item.Serial if item.Serial and item.Serial|string|upper != 'NONE' else '' }}
                 </div>
             </div>
         </div>

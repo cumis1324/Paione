@@ -25,6 +25,15 @@ const elements = {
     salesDetailModal: document.getElementById('sales-detail-modal'),
     salesDetailContent: document.getElementById('sales-detail-content'),
     salesDetailModalTitle: document.getElementById('sales-detail-modal-title'),
+    // --- PERUBAHAN DI SINI: Tambah elemen modal detail barang ---
+    itemDetailModal: document.getElementById('item-detail-modal'),
+    itemDetailTitle: document.getElementById('item-detail-title'),
+    itemDetailContent: document.getElementById('item-detail-content'),
+    itemDetailFooter: document.getElementById('item-detail-footer'),
+    lookupDetailModal: document.getElementById('lookup-detail-modal'),
+    lookupDetailTitle: document.getElementById('lookup-detail-title'),
+    lookupDetailContent: document.getElementById('lookup-detail-content'),
+    lookupDetailFooter: document.getElementById('lookup-detail-footer'),
 };
 
 let currentModalCallback = null;
@@ -42,6 +51,79 @@ export function formatRupiah(number) {
     }).format(num);
 
     return `Rp. ${formattedNumber}`;
+}
+
+export function openItemDetailModal() {
+    elements.itemDetailModal.classList.remove('hidden');
+    showLoader(elements.itemDetailContent);
+    elements.itemDetailFooter.innerHTML = `<div class="flex justify-center items-center w-full"><svg class="animate-spin h-5 w-5 text-indigo-600 dark:text-indigo-400" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg></div>`;
+}
+
+export function closeItemDetailModal() {
+    elements.itemDetailModal.classList.add('hidden');
+    elements.itemDetailContent.innerHTML = ''; // Kosongkan konten saat ditutup
+    elements.itemDetailFooter.innerHTML = ''; // Kosongkan footer saat ditutup
+}
+
+export function renderItemDetailModal(item) {
+    elements.itemDetailTitle.textContent = item.Name || 'Detail Barang';
+
+    const isActive = item.IsActive == 1;
+    const statusHTML = `<span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${isActive ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300' : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300'}">${isActive ? 'Aktif' : 'Nonaktif'}</span>`;
+
+    elements.itemDetailContent.innerHTML = `
+        <dl class="grid grid-cols-1 sm:grid-cols-3 gap-x-4 gap-y-6 text-sm">
+            <div class="sm:col-span-1"><dt class="font-medium text-gray-500 dark:text-gray-400">Barcode</dt><dd class="mt-1 text-gray-900 dark:text-gray-200">${item.Barcode || '-'}</dd></div>
+            <div class="sm:col-span-2"><dt class="font-medium text-gray-500 dark:text-gray-400">Nama Item</dt><dd class="mt-1 text-gray-900 dark:text-gray-200">${item.Name || '-'}</dd></div>
+            <div class="sm:col-span-1"><dt class="font-medium text-gray-500 dark:text-gray-400">Harga</dt><dd class="mt-1 text-gray-900 dark:text-gray-200">${formatRupiah(item.Price)}</dd></div>
+            <div class="sm:col-span-1"><dt class="font-medium text-gray-500 dark:text-gray-400">Serial</dt><dd class="mt-1 text-gray-900 dark:text-gray-200">${item.Serial || '-'}</dd></div>
+            <div class="sm:col-span-1"><dt class="font-medium text-gray-500 dark:text-gray-400">Status</dt><dd class="mt-1 text-gray-900 dark:text-gray-200">${statusHTML}</dd></div>
+            <div class="sm:col-span-1"><dt class="font-medium text-gray-500 dark:text-gray-400">Bahan</dt><dd class="mt-1 text-gray-900 dark:text-gray-200">${item.MaterialName || '-'}</dd></div>
+            <div class="sm:col-span-1"><dt class="font-medium text-gray-500 dark:text-gray-400">Ukuran</dt><dd class="mt-1 text-gray-900 dark:text-gray-200">${item.SizeName || '-'}</dd></div>
+            <div class="sm:col-span-1"><dt class="font-medium text-gray-500 dark:text-gray-400">Merek</dt><dd class="mt-1 text-gray-900 dark:text-gray-200">${item.BrandName || '-'}</dd></div>
+            <div class="sm:col-span-1"><dt class="font-medium text-gray-500 dark:text-gray-400">Model</dt><dd class="mt-1 text-gray-900 dark:text-gray-200">${item.ModelName || '-'}</dd></div>
+        </dl>
+    `;
+
+    elements.itemDetailFooter.innerHTML = `
+        ${isSuperAdmin() ? `<button class="text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-200 toggle-active-btn" data-id="${item.Id}" title="${isActive ? 'Nonaktifkan' : 'Aktifkan'}">${isActive ? 'Nonaktifkan' : 'Aktifkan'}</button>` : ''}
+        ${can('W', 'items') ? `<button class="text-indigo-600 hover:text-indigo-900 dark:text-indigo-400 dark:hover:text-indigo-300 edit-item-btn" data-id="${item.Id}">Edit</button>` : ''}
+        ${can('D', 'items') ? `<button class="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300 delete-btn" data-id="${item.Id}">Hapus</button>` : ''}
+        ${can('P', 'items') ? `<a href="/print/barcode/${item.Id}" target="_blank" class="text-green-600 hover:text-green-900 dark:text-green-400 dark:hover:text-green-300">Cetak Barcode</a>` : ''}
+    `;
+}
+
+export function openLookupDetailModal() {
+    elements.lookupDetailModal.classList.remove('hidden');
+    showLoader(elements.lookupDetailContent);
+    elements.lookupDetailFooter.innerHTML = `<div class="flex justify-center items-center w-full"><svg class="animate-spin h-5 w-5 text-indigo-600 dark:text-indigo-400" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg></div>`;
+}
+
+export function closeLookupDetailModal() {
+    elements.lookupDetailModal.classList.add('hidden');
+    elements.lookupDetailContent.innerHTML = '';
+    elements.lookupDetailFooter.innerHTML = '';
+}
+
+export function renderLookupDetailModal(item, type) {
+    const typeName = pageConfig[`#${type}`]?.title || 'Detail';
+    elements.lookupDetailTitle.textContent = typeName;
+
+    const isActive = item.IsActive == 1;
+    const statusHTML = `<span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${isActive ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300' : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300'}">${isActive ? 'Aktif' : 'Nonaktif'}</span>`;
+
+    elements.lookupDetailContent.innerHTML = `
+        <dl class="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-6 text-sm">
+            <div class="sm:col-span-1"><dt class="font-medium text-gray-500 dark:text-gray-400">Nama</dt><dd class="mt-1 text-gray-900 dark:text-gray-200">${item.Name || '-'}</dd></div>
+            <div class="sm:col-span-1"><dt class="font-medium text-gray-500 dark:text-gray-400">Status</dt><dd class="mt-1 text-gray-900 dark:text-gray-200">${statusHTML}</dd></div>
+        </dl>
+    `;
+
+    elements.lookupDetailFooter.innerHTML = `
+        ${isSuperAdmin() ? `<button class="text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-200 toggle-active-btn" data-id="${item.Id}" title="${isActive ? 'Nonaktifkan' : 'Aktifkan'}">${isActive ? 'Nonaktifkan' : 'Aktifkan'}</button>` : ''}
+        ${can('W', type) ? `<button class="text-indigo-600 hover:text-indigo-900 dark:text-indigo-400 dark:hover:text-indigo-300 edit-lookup-btn" data-id="${item.Id}" data-name="${item.Name}">Edit</button>` : ''}
+        ${can('D', type) ? `<button class="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300 delete-btn" data-id="${item.Id}">Hapus</button>` : ''}
+    `;
 }
 // --- AKHIR PERUBAHAN ---
 export function openSalesDetailModal() {
@@ -61,6 +143,7 @@ export function renderSalesDetail(details, header) {
                 <div><strong class="font-semibold">Nomor:</strong> ${header.Nomor || '-'}</div>
                 <div><strong class="font-semibold">Nama:</strong> ${header.Name || '-'}</div>
                 <div><strong class="font-semibold">Cabang:</strong> ${header.Cabang || '-'}</div>
+                <div><strong class="font-semibold">Pembayaran:</strong> ${header.Pembayaran || '-'}</div>
             </div>
         `;
     }
@@ -87,13 +170,13 @@ export function renderSalesDetail(details, header) {
         totalSubtotal += parseFloat(item.Subtotal) || 0;
 
         tableHTML += `<tr>
-            <td data-label="Nama Barang" class="px-4 py-2 whitespace-nowrap text-sm text-gray-800 dark:text-gray-300">${item.NamaBarang || '-'}</td>
-            <td data-label="Qty" class="px-4 py-2 whitespace-nowrap text-sm text-gray-800 dark:text-gray-300">${item.Qty || 0}</td>
-            <td data-label="Harga" class="px-4 py-2 whitespace-nowrap text-sm text-gray-800 dark:text-gray-300">${formatRupiah(item.Price)}</td>
-            <td data-label="Diskon" class="px-4 py-2 whitespace-nowrap text-sm text-gray-800 dark:text-gray-300">${formatRupiah(item.Discount)}</td>
-            <td data-label="Subtotal" class="px-4 py-2 whitespace-nowrap text-sm text-gray-800 dark:text-gray-300">${formatRupiah(item.Subtotal)}</td>
-            <td data-label="Note" class="px-4 py-2 whitespace-nowrap text-sm text-gray-800 dark:text-gray-300">${item.Note || '-'}</td>
-            <td data-label="Serial" class="px-4 py-2 whitespace-nowrap text-sm text-gray-800 dark:text-gray-300">${item.Serial || '-'}</td>
+            <td data-label="Nama Barang" class="px-4 py-2 text-sm text-gray-800 dark:text-gray-300 break-words">${item.NamaBarang || '-'}</td>
+            <td data-label="Qty" class="px-4 py-2 text-sm text-gray-800 dark:text-gray-300 break-words">${item.Qty || 0}</td>
+            <td data-label="Harga" class="px-4 py-2 text-sm text-gray-800 dark:text-gray-300 break-words">${formatRupiah(item.Price)}</td>
+            <td data-label="Diskon" class="px-4 py-2 text-sm text-gray-800 dark:text-gray-300 break-words">${formatRupiah(item.Discount)}</td>
+            <td data-label="Subtotal" class="px-4 py-2 text-sm text-gray-800 dark:text-gray-300 break-words">${formatRupiah(item.Subtotal)}</td>
+            <td data-label="Note" class="px-4 py-2 text-sm text-gray-800 dark:text-gray-300 break-words">${item.Note || '-'}</td>
+            <td data-label="Serial" class="px-4 py-2 text-sm text-gray-800 dark:text-gray-300 break-words">${item.Serial || '-'}</td>
         </tr>`;
     });
 
@@ -205,6 +288,16 @@ export function setupModalEventListeners() {
 
     document.getElementById('item-modal-cancel').addEventListener('click', closeItemEditModal);
     document.getElementById('item-modal-save').addEventListener('click', saveItemChanges);
+
+    const itemDetailCloseBtn = document.getElementById('item-detail-close-btn');
+    if (itemDetailCloseBtn) {
+        itemDetailCloseBtn.addEventListener('click', closeItemDetailModal);
+    }
+
+    const lookupDetailCloseBtn = document.getElementById('lookup-detail-close-btn');
+    if (lookupDetailCloseBtn) {
+        lookupDetailCloseBtn.addEventListener('click', closeLookupDetailModal);
+    }
 }
 
 export function renderTableRows(tableBody, data, type) {
@@ -216,16 +309,10 @@ export function renderTableRows(tableBody, data, type) {
         let actions = '';
         const isLookupPage = ['materials', 'sizes', 'brands', 'models'].includes(type);
         if (type === 'packinglist-barcode') {
-            actions = `<td data-label="Aksi" class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                ${can('W', 'packinglist-barcode') ? `<button class="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300 delete-packinglist-btn" data-barcode="${item.Barcode}">Hapus</button>` : ''}
-            </td>`;
-        } else if (isLookupPage || type === 'items') {
-            actions = `<td data-label="Aksi" class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                ${isSuperAdmin() ? `<button class="text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-200 toggle-active-btn" data-id="${item.Id}" title="${isActive ? 'Nonaktifkan' : 'Aktifkan'}">${isActive ? 'Nonaktifkan' : 'Aktifkan'}</button>` : ''}
-                ${can('W', 'items') && type === 'items' ? `<button class="text-indigo-600 hover:text-indigo-900 dark:text-indigo-400 dark:hover:text-indigo-300 ml-4 edit-item-btn" data-id="${item.Id}">Edit</button>` : ''}
-                ${can('W', type) && isLookupPage ? `<button class="text-indigo-600 hover:text-indigo-900 dark:text-indigo-400 dark:hover:text-indigo-300 ml-4 edit-lookup-btn" data-id="${item.Id}" data-name="${item.Name}">Edit</button>` : ''}
-                ${can('D', type) ? `<button class="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300 ml-4 delete-btn" data-id="${item.Id}">Hapus</button>` : ''}
-                ${can('P', 'items') && type === 'items' ? `<a href="/print/barcode/${item.Id}" target="_blank" class="text-green-600 hover:text-green-900 dark:text-green-400 dark:hover:text-green-300 ml-4">Cetak Barcode</a>` : ''}
+            actions = `<td data-label="Aksi" class="px-6 py-4 text-right text-sm font-medium">
+                <div class="flex flex-wrap items-center justify-end gap-x-4 gap-y-2">
+                    ${can('W', 'packinglist-barcode') ? `<button class="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300 delete-packinglist-btn" data-barcode="${item.Barcode}">Hapus</button>` : ''}
+                </div>
             </td>`;
         }
         let rowData = '';
@@ -238,7 +325,7 @@ export function renderTableRows(tableBody, data, type) {
             } else {
                 cellValue = item[col.key] || '-';
             }
-            rowData += `<td data-label="${col.label}" class="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300">${cellValue}</td>`;
+            rowData += `<td data-label="${col.label}" class="px-6 py-4 text-sm text-gray-600 dark:text-gray-300 break-words">${cellValue}</td>`;
         });
         const newRow = document.createElement('tr');
         if (type === 'packinglist-riwayat') {
@@ -249,6 +336,14 @@ export function renderTableRows(tableBody, data, type) {
         if (type === 'penjualan') {
             newRow.classList.add('cursor-pointer', 'hover:bg-gray-50', 'dark:hover:bg-gray-700', 'sales-row-clickable');
             newRow.dataset.activityId = item.Id;
+        }
+        if (type === 'items') {
+            newRow.classList.add('cursor-pointer', 'hover:bg-gray-50', 'dark:hover:bg-gray-700', 'item-row-clickable');
+            newRow.dataset.id = item.Id;
+        }
+        if (isLookupPage) {
+            newRow.classList.add('cursor-pointer', 'hover:bg-gray-50', 'dark:hover:bg-gray-700', 'lookup-row-clickable');
+            newRow.dataset.id = item.Id;
         }
         newRow.innerHTML = rowData + actions;
         tableBody.appendChild(newRow);

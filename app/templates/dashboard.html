@@ -21,6 +21,22 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <link rel="preconnect" href="https://rsms.me/">
     <link rel="stylesheet" href="https://rsms.me/inter/inter.css">
+        <!-- Favicon -->
+    <link rel="icon" type="image/png" sizes="16x16" href="{{ url_for('static', filename='icons/favicon-16x16.png') }}">
+    <link rel="icon" type="image/png" sizes="32x32" href="{{ url_for('static', filename='icons/favicon-32x32.png') }}">
+    <link rel="shortcut icon" href="{{ url_for('static', filename='icons/favicon.ico') }}">
+    
+    <!-- Apple Touch Icon -->
+    <link rel="apple-touch-icon" sizes="180x180" href="{{ url_for('static', filename='icons/apple-touch-icon.png') }}">
+
+    <!-- Apple Splash Screen (Light & Dark) -->
+    <link rel="apple-touch-startup-image" media="(prefers-color-scheme: light)" href="{{ url_for('static', filename='icons/paione-splash-512x512.png') }}">
+    <link rel="apple-touch-startup-image" media="(prefers-color-scheme: dark)" href="{{ url_for('static', filename='icons/paione-splash-dark.png') }}">
+    
+    <!-- Android Chrome Icons -->
+    <link rel="icon" type="image/png" sizes="192x192" href="{{ url_for('static', filename='icons/android-chrome-192x192.png') }}">
+    <link rel="icon" type="image/png" sizes="512x512" href="{{ url_for('static', filename='icons/android-chrome-512x512.png') }}">
+    
     <style>
         :root { font-family: 'Inter', sans-serif; }
         @supports (font-variation-settings: normal) { :root { font-family: 'Inter var', sans-serif; } }
@@ -69,7 +85,7 @@
             }
             .responsive-table-container tr {
                 display: block;
-                margin-bottom: 1rem;
+                margin-bottom: 0.75rem;
                 border-bottom: 2px solid #ddd;
             }
             .responsive-table-container td {
@@ -124,7 +140,7 @@
                             </svg>
                         </button>
                         <div id="master-dropdown-menu" class="hidden mt-1 pl-4 space-y-1">
-                            <a href="#add-item" data-permission="WNB" class="nav-link flex items-center px-4 py-2 rounded-md hover:bg-gray-700 dark:hover:bg-gray-600">Tambah Barcode</a>
+                            <a href="#add-item" data-permission="WNB" class="nav-link block px-4 py-2 rounded-md text-sm hover:bg-gray-700 dark:hover:bg-gray-600">Tambah Barcode</a>
                             <a href="#items" data-permission="RI" class="nav-link block px-4 py-2 rounded-md text-sm hover:bg-gray-700 dark:hover:bg-gray-600">Barang</a>
                             <a href="#materials" data-permission="RM" class="nav-link block px-4 py-2 rounded-md text-sm hover:bg-gray-700 dark:hover:bg-gray-600">Bahan</a>
                             <a href="#sizes" data-permission="RSz" class="nav-link block px-4 py-2 rounded-md text-sm hover:bg-gray-700 dark:hover:bg-gray-600">Ukuran</a>
@@ -199,9 +215,13 @@
                         <button id="hamburger-btn" class="p-2 mr-2 text-gray-500 rounded-md hover:text-gray-700 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-700">
                             <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" /></svg>
                         </button>
-                        <div class="flex items-center gap-x-3">
-                            <img class="h-10 w-auto" src="./static/icons/icon-192x192.png" alt="Logo Perusahaan" onerror="this.onerror=null;this.src='https://placehold.co/120x40?text=Logo';">
-                            <span class="font-bold text-xl text-gray-800 hidden sm:block dark:text-gray-100">Jasiva Guna Garmindo</span>
+                        <div class="flex items-center gap-x-2">
+                            <img class="h-10 w-auto hidden dark:block" src="{{ url_for('static', filename='icons/paione-dark.png') }}" alt="Logo Perusahaan" onerror="this.onerror=null;this.src='https://placehold.co/120x40?text=Logo';">
+                            <img class="h-10 w-auto block dark:hidden" src="{{ url_for('static', filename='icons/paione.png') }}" alt="Logo Perusahaan" onerror="this.onerror=null;this.src='https://placehold.co/120x40?text=Logo';">
+                            <div class="hidden sm:flex sm:flex-col">
+                                <span class="text-xs leading-tight text-gray-600 dark:text-gray-400">Panel All In One</span>
+                                <span class="font-bold text-sm leading-tight text-gray-800 dark:text-gray-100">Jasiva Guna Garmindo</span>
+                            </div>
                         </div>
                     </div>
                     <div class="flex items-center gap-x-4">
@@ -209,7 +229,7 @@
                             <svg class="w-5 h-5 moon-icon" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z"></path></svg>
                             <svg class="w-5 h-5 sun-icon hidden" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><path d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-.464 4.95l.707.707a1 1 0 001.414-1.414l-.707-.707a1 1 0 00-1.414 1.414zm2.12-10.607a1 1 0 010 1.414l-.707.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zM10 16a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zM3.05 4.54a1 1 0 00-1.414 1.414l.707.707a1 1 0 001.414-1.414l-.707-.707zM15.464 15.464a1 1 0 01-1.414 0l.707-.707a1 1 0 011.414 1.414l-.707.707zM2 10a1 1 0 011-1h1a1 1 0 110 2H3a1 1 0 01-1-1z" fill-rule="evenodd" clip-rule="evenodd"></path></svg>
                         </button>
-                        <h1 id="page-title" class="text-lg font-semibold leading-6 text-gray-900 dark:text-white text-right truncate">Dashboard</h1>
+                        <h1 id="page-title" class="text-lg font-semibold leading-6 text-gray-900 dark:text-white text-right break-words">Dashboard</h1>
                     </div>
                 </div>
             </header>
@@ -220,7 +240,7 @@
         </div>
     </div>
 
-    <div id="lookup-edit-modal" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+    <div id="lookup-edit-modal" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-[60]">
         <div class="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white dark:bg-gray-800 dark:border-gray-700">
             <div class="mt-3">
                 <h3 id="lookup-modal-title" class="text-lg leading-6 font-medium text-gray-900 dark:text-white text-center">Edit Item</h3>
@@ -294,6 +314,38 @@
                 </div>
             <div class="items-center px-4 py-3 mt-4 text-right border-t dark:border-gray-700">
                  <button id="sales-detail-close-btn-bottom" class="px-4 py-2 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300 dark:bg-gray-600 dark:text-gray-200 dark:hover:bg-gray-500">Tutup</button>
+            </div>
+        </div>
+    </div>
+    <div id="item-detail-modal" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+        <div class="relative top-10 mx-auto p-5 border w-full max-w-2xl shadow-lg rounded-md bg-white dark:bg-gray-800 dark:border-gray-700">
+            <div class="flex justify-between items-center border-b pb-3 dark:border-gray-700">
+                <h3 id="item-detail-title" class="text-lg leading-6 font-medium text-gray-900 dark:text-white">Detail Barang</h3>
+                <button id="item-detail-close-btn" class="text-black close-modal">
+                    <svg class="h-6 w-6 text-gray-700 dark:text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
+                </button>
+            </div>
+            <div id="item-detail-content" class="mt-4 p-4">
+                <!-- Konten detail akan dirender oleh JavaScript -->
+            </div>
+            <div id="item-detail-footer" class="flex flex-wrap items-center justify-end gap-x-4 gap-y-2 px-4 py-3 mt-4 border-t dark:border-gray-700">
+                <!-- Tombol aksi akan dirender oleh JavaScript -->
+            </div>
+        </div>
+    </div>
+    <div id="lookup-detail-modal" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+        <div class="relative top-20 mx-auto p-5 border w-full max-w-md shadow-lg rounded-md bg-white dark:bg-gray-800 dark:border-gray-700">
+            <div class="flex justify-between items-center border-b pb-3 dark:border-gray-700">
+                <h3 id="lookup-detail-title" class="text-lg leading-6 font-medium text-gray-900 dark:text-white">Detail</h3>
+                <button id="lookup-detail-close-btn" class="text-black close-modal">
+                    <svg class="h-6 w-6 text-gray-700 dark:text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
+                </button>
+            </div>
+            <div id="lookup-detail-content" class="mt-4 p-4">
+                <!-- Konten detail akan dirender oleh JavaScript -->
+            </div>
+            <div id="lookup-detail-footer" class="flex flex-wrap items-center justify-end gap-x-4 gap-y-2 px-4 py-3 mt-4 border-t dark:border-gray-700">
+                <!-- Tombol aksi akan dirender oleh JavaScript -->
             </div>
         </div>
     </div>
