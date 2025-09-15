@@ -10,7 +10,7 @@ import time
 
 # Dapatkan path absolut ke direktori tempat skrip ini berada
 script_dir = os.path.dirname(os.path.realpath(__file__))
-script_to_run = os.path.join(script_dir, 'jbb2.py')
+script_to_run = os.path.join(script_dir, 'run.py')
 log_file = os.path.join(script_dir, 'service.log') # Path untuk file log
 
 # --- PERBAIKAN ---

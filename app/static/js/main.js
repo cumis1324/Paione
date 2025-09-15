@@ -2,8 +2,14 @@ import { setUserPermissions, setUsername,  pageConfig, can, isSuperAdmin, userPe
 import { api } from './api.js';
 import { openSidebar, closeSidebar, showNotification, 
     handleEditItem, setupModalEventListeners, 
-    setRefreshDataCallback, openSalesDetailModal, 
-    closeSalesDetailModal, renderSalesDetail, renderPackingListDetail, setSalesDetailModalTitle } from './ui.js';
+    setRefreshDataCallback, 
+    openSalesDetailModal, closeSalesDetailModal, renderSalesDetail, 
+    renderPackingListDetail, setSalesDetailModalTitle,
+    // --- PERUBAHAN DI SINI: Impor fungsi modal baru ---
+    openItemDetailModal, closeItemDetailModal, renderItemDetailModal,
+    openLookupDetailModal, closeLookupDetailModal, renderLookupDetailModal
+    // --- AKHIR PERUBAHAN ---
+} from './ui.js';
 import { handleDelete, handleDeletePackingList, handleEditLookup, handleToggleActive, refreshData, renderPage } from './renderPage.js';
 import { initializeDarkMode } from './darkmode.js';
 document.addEventListener('DOMContentLoaded', () => {
@@ -131,17 +137,60 @@ document.addEventListener('DOMContentLoaded', () => {
     
 
 
-    // --- PERUBAHAN DI SINI: Event Delegation untuk Tombol Aksi ---
-    appContent.addEventListener('click', async (event) => {
+    // --- PERUBAHAN DI SINI: Event Delegation Global di document.body ---
+    document.body.addEventListener('click', async (event) => {
         const target = event.target;
+        const hash = window.location.hash || '#'; // Dapatkan hash saat ini
+        const type = pageConfig[hash]?.type; // Dapatkan tipe halaman dari hash
+
+        // --- Penanganan Tombol Aksi (bisa di dalam tabel atau modal) ---
         const deleteBtn = target.closest('.delete-btn');
         const editItemBtn = target.closest('.edit-item-btn');
         const toggleBtn = target.closest('.toggle-active-btn');
         const editLookupBtn = target.closest('.edit-lookup-btn');
-        const salesRow = target.closest('.sales-row-clickable');
         const deletePackingListBtn = target.closest('.delete-packinglist-btn');
-        const hash = window.location.hash || '#items';
-        const type = pageConfig[hash]?.type;
+
+        const lookupRow = target.closest('.lookup-row-clickable');
+        if (lookupRow) {
+            const lookupId = lookupRow.dataset.id;
+            if (type) {
+                openLookupDetailModal();
+                try {
+                    const result = await api.getLookupItemDetails(type, lookupId);
+                    if (result.status === 'success') {
+                        renderLookupDetailModal(result.data, type);
+                    } else {
+                        throw new Error(result.message);
+                    }
+                } catch (error) {
+                    showNotification(error.message, 'error');
+                    closeLookupDetailModal();
+                }
+            }
+            return;
+        }
+
+        // --- Penanganan Klik pada Baris ---
+        const itemRow = target.closest('.item-row-clickable');
+        if (itemRow) {
+            const itemId = itemRow.dataset.id;
+            openItemDetailModal(); // Buka modal dengan loader
+            try {
+                const res = await fetch(`/api/data/items/${itemId}`);
+                const result = await res.json();
+                if (result.status === 'success') {
+                    renderItemDetailModal(result.data);
+                } else {
+                    throw new Error(result.message);
+                }
+            } catch (error) {
+                showNotification(error.message, 'error');
+                closeItemDetailModal();
+            }
+            return;
+        }
+
+        const salesRow = target.closest('.sales-row-clickable');
         const packinglistRow = target.closest('.packinglist-row-clickable');
         
         if (salesRow) {
@@ -149,25 +198,23 @@ document.addEventListener('DOMContentLoaded', () => {
             setSalesDetailModalTitle('Detail Penjualan');
             openSalesDetailModal();
             try {
-                    const [detailResult, headerResult] = await Promise.all([
-                        api.getSalesDetail(activityId),
-                        api.getSalesHeader(activityId)
-                    ]);
-                    if (detailResult.status === 'success' && headerResult.status === 'success') {
-                        renderSalesDetail(detailResult.data, headerResult.data);
-                    } else {
-                        throw new Error(detailResult.message || headerResult.message);
-                    }
-                } catch (error) {
-                    showNotification(error.message, 'error');
-                    closeSalesDetailModal();
+                const [detailResult, headerResult] = await Promise.all([
+                    api.getSalesDetail(activityId),
+                    api.getSalesHeader(activityId)
+                ]);
+                if (detailResult.status === 'success' && headerResult.status === 'success') {
+                    renderSalesDetail(detailResult.data, headerResult.data);
+                } else {
+                    throw new Error(detailResult.message || headerResult.message);
                 }
+            } catch (error) {
+                showNotification(error.message, 'error');
+                closeSalesDetailModal();
+            }
+            return;
         }
 
-        if (!type && !deletePackingListBtn) return;
-
-        // Logika untuk tombol hapus, edit, toggle (sudah benar, biarkan saja)
-         if (packinglistRow) {
+        if (packinglistRow) {
             const idno = packinglistRow.dataset.idno;
             const headerData = JSON.parse(packinglistRow.dataset.headerData);
             setSalesDetailModalTitle('Detail Packing List');
@@ -175,7 +222,7 @@ document.addEventListener('DOMContentLoaded', () => {
             try {
                 const result = await api.getPackingListDetail(idno);
                 if (result.status === 'success') {
-                    renderPackingListDetail(result.data, headerData); // <-- Kode ini mengharapkan result.data
+                    renderPackingListDetail(result.data, headerData);
                 }else {
                     throw new Error(result.message);
                 }
@@ -183,26 +230,36 @@ document.addEventListener('DOMContentLoaded', () => {
                 showNotification(error.message, 'error');
                 closeSalesDetailModal();
             }
-        }
-        else if (deletePackingListBtn) {
-           handleDeletePackingList(deletePackingListBtn.dataset.barcode);
+            return;
         } 
-        else if (deleteBtn) {
-            handleDelete(type, deleteBtn.dataset.id);
+        
+        if (deletePackingListBtn) {
+           handleDeletePackingList(deletePackingListBtn.dataset.barcode);
+        } else if (deleteBtn) {
+            const itemType = target.closest('#item-detail-modal') ? 'items' : type;
+            if (itemType) handleDelete(itemType, deleteBtn.dataset.id);
         } else if (editItemBtn) {
+            closeItemDetailModal();
             handleEditItem(editItemBtn.dataset.id);
         } else if (toggleBtn) {
-            handleToggleActive(type, toggleBtn.dataset.id);
+            const itemType = target.closest('#item-detail-modal') ? 'items' : type;
+            if (itemType) handleToggleActive(itemType, toggleBtn.dataset.id);
         } else if (editLookupBtn) {
-            handleEditLookup(type, editLookupBtn.dataset.id, editLookupBtn.dataset.name);
+            // Tutup modal detail sebelum membuka modal edit
+            if (target.closest('#lookup-detail-modal')) {
+                closeLookupDetailModal();
+            }
+            if (type) handleEditLookup(type, editLookupBtn.dataset.id, editLookupBtn.dataset.name);
         }
-    });
-        
-    
 
-     document.body.addEventListener('click', (e) => {
-       const target = e.target;
-         if (target.closest('#sales-detail-close-btn') || target.closest('#sales-detail-close-btn-bottom')) {
+        // --- Penanganan Tombol Tutup Modal ---
+        if (target.closest('#item-detail-close-btn')) {
+            closeItemDetailModal();
+        }
+        if (target.closest('#lookup-detail-close-btn')) {
+            closeLookupDetailModal();
+        }
+        if (target.closest('#sales-detail-close-btn') || target.closest('#sales-detail-close-btn-bottom')) {
             closeSalesDetailModal();
         }
      });

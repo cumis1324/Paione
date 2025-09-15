@@ -111,7 +111,7 @@ export async function renderComparisonChart(currentStartDate, currentEndDate, mo
         );
 
         paymentComparisonChart = renderSingleChart(
-            'paymentComparisonChart', 'bar', ['Lunas', 'Belum Lunas', 'Tidak Diketahui'], `Perbandingan Status Pembayaran`,
+            'paymentComparisonChart', 'bar', ['EDC, CASH, TRANSFER', 'DEBT', 'Tidak Diketahui'], `Perbandingan Status Pembayaran`,
             { label: prevLabel, data: [parseFloat(prevData.lunas || 0), parseFloat(prevData.belum_lunas || 0), parseFloat(prevData.tidak_diketahui || 0)] },
             {
                 label: currentLabel, data: [parseFloat(currentData.lunas || 0), parseFloat(currentData.belum_lunas || 0), parseFloat(currentData.tidak_diketahui || 0)],

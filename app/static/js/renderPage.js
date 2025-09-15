@@ -372,13 +372,24 @@ const debounce = (func, delay = 500) => {
         openLookupModal({
             title: 'Konfirmasi Hapus', label: 'Apakah Anda yakin ingin menghapus item ini?', saveText: 'Ya, Hapus',
             onSave: async () => {
+            let success = false;
                 try {
                     const result = await api.deleteData(type, id);
                     if (result.status !== 'success') throw new Error(result.message);
                     showNotification(result.message, 'success');
-                    closeLookupModal();
                     refreshData(type);
-                } catch (error) { showNotification(error.message, 'error'); }
+                success = true;
+            } catch (error) { 
+                showNotification(error.message, 'error');
+                success = false;
+            }
+            // Tutup modal detail item jika penghapusan berhasil dan tipenya 'items'
+            if (success) {
+                const { closeItemDetailModal, closeLookupDetailModal } = await import('./ui.js');
+                if (type === 'items') closeItemDetailModal();
+                else if (['materials', 'sizes', 'brands', 'models'].includes(type)) closeLookupDetailModal();
+            }
+            return success; // Kembalikan status untuk menutup modal konfirmasi
             }
         });
     }
@@ -389,6 +400,11 @@ const debounce = (func, delay = 500) => {
             if (result.status !== 'success') throw new Error(result.message);
             showNotification(result.message, 'success');
             refreshData(type);
+            // Jika aksi dari dalam modal, tutup modalnya
+            const { closeItemDetailModal, closeLookupDetailModal } = await import('./ui.js');
+            if (type === 'items') closeItemDetailModal();
+            else if (['materials', 'sizes', 'brands', 'models'].includes(type)) closeLookupDetailModal();
+
         } catch (error) {
             showNotification(error.message, 'error');
         }
