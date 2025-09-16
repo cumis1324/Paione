@@ -7,6 +7,7 @@ export let lazyLoadState = {
     totalRecords: 0,
     observer: null
 };
+export let selectedStore = 'All';
 
 export const ITEMS_PER_PAGE = 50;
 
@@ -78,6 +79,27 @@ export const pageConfig = {
         type: 'piutang',
         columns: []
     },
+    '#pajak-invoice': {
+        title: 'Pajak Invoice Penjualan',
+        type: 'pajak-invoice',
+        columns: [
+            { key: 'InvNo', label: 'No. Invoice' },
+            { key: 'InvDate', label: 'Tgl. Invoice' },
+            { key: 'Toko', label: 'Toko' },
+            { key: 'Customer', label: 'Customer' },
+            { key: 'Qty', label: 'Qty' },
+            { key: 'Up', label: 'Harga Satuan' },
+            { key: 'Amount', label: 'Jumlah' },
+            { key: 'Disc', label: 'Diskon' },
+            { key: 'TotalAmount', label: 'Total' },
+            { key: 'VatAmount', label: 'PPN' },
+            { key: 'DppUp', label: 'DPP Harga' },
+            { key: 'DppDisc', label: 'DPP Diskon' },
+            { key: 'DppAmt', label: 'DPP Jumlah' },
+            { key: 'DppNilaiLain', label: 'DPP Lain' },
+            { key: 'Remark', label: 'Keterangan' }
+        ]
+    },
     '#materials': { title: 'Kelola Bahan', type: 'materials', columns: [{ key: 'Name', label: 'Nama' }, { key: 'Status', label: 'Status' }] },
     '#sizes': { title: 'Kelola Ukuran', type: 'sizes', columns: [{ key: 'Name', label: 'Nama' }, { key: 'Status', label: 'Status' }] },
     '#brands': { title: 'Kelola Merek', type: 'brands', columns: [{ key: 'Name', label: 'Nama' }, { key: 'Status', label: 'Status' }] },
@@ -95,6 +117,7 @@ export const permissionMap = {
     'items': {'R': 'RI', 'W': 'WI', 'D': 'DI', 'P': 'PB'}, 
     'penjualan': {'R': 'RP'},
     'penerimaan': {'R': 'RP'},
+    'pajak-invoice': {'R': 'RPjk'},
     'piutang': {'R': 'RP'},
     'materials': {'R': 'RM', 'W': 'WM', 'D': 'DM'}, 
     'sizes': {'R': 'RSz', 'W': 'WSz', 'D': 'DSz'},
@@ -107,6 +130,10 @@ export const permissionMap = {
 
 export function setUserPermissions(permissions) {
     userPermissions = permissions;
+}
+
+export function setSelectedStore(store) {
+    selectedStore = store;
 }
 
 export function resetLazyLoadState() {

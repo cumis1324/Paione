@@ -1,13 +1,16 @@
-import { lazyLoadState, ITEMS_PER_PAGE, currentSort, getClientInfo } from './state.js';
+import { lazyLoadState, ITEMS_PER_PAGE, currentSort, getClientInfo, selectedStore } from './state.js';
 
 async function fetchData(type, searchQuery = '') {
     let apiUrl = `/api/data/${type}?search=${searchQuery}&sort_by=${currentSort.column}&sort_order=${currentSort.order}&page=${lazyLoadState.currentPage}&limit=${ITEMS_PER_PAGE}`;
-    if (type === 'penjualan') {
+    if (['penjualan', 'penerimaan', 'pajak-invoice'].includes(type)) {
         const startDate = document.getElementById('start-date').value;
         const endDate = document.getElementById('end-date').value;
         if (startDate && endDate) {
             apiUrl += `&start_date=${startDate}&end_date=${endDate}`;
         }
+    }
+    if (type === 'pajak-invoice' && selectedStore !== 'All') {
+        apiUrl += `&toko=${encodeURIComponent(selectedStore)}`;
     }
     const response = await fetch(apiUrl);
     return await response.json();
@@ -154,6 +157,11 @@ async function getLookupItemDetails(type, id) {
     const response = await fetch(`/api/data/lookup/${type}/${id}`);
     return await response.json();
 }
+
+async function getPajakInvoiceStores() {
+    const response = await fetch('/api/pajak-invoice/stores');
+    return await response.json();
+}
 export const api = {
     fetchData,
     getFormData,
@@ -179,5 +187,6 @@ export const api = {
     getFactoryAnalyticsByRange,
     getFactoryAnalyticsTimeSeries,
     getFactorySalesDetail,
-    getLookupItemDetails
+    getLookupItemDetails,
+    getPajakInvoiceStores
 };

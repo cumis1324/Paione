@@ -318,7 +318,8 @@ export function renderTableRows(tableBody, data, type) {
         let rowData = '';
         config.columns.forEach(col => {
             let cellValue;
-            if (col.key === 'Price' || col.key === 'TotalHargaPenjualan') {
+            const currencyKeys = ['Price', 'TotalHargaPenjualan', 'Up', 'Amount', 'Disc', 'TotalAmount', 'DppUp', 'DppDisc', 'DppAmt', 'DppNilaiLain', 'HargaQty', 'VatAmount'];
+            if (currencyKeys.includes(col.key)) {
                 cellValue = formatRupiah(item[col.key]);
             } else if (col.key === 'Status') {
                 cellValue = statusHTML;

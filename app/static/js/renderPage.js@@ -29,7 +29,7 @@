@@ -1,4 +1,4 @@
-import { resetLazyLoadState, lazyLoadState, currentSort, setCurrentSort, pageConfig, can, setSelectedStore, selectedStore } from './state.js';
+import { resetLazyLoadState, lazyLoadState, currentSort, setCurrentSort, pageConfig, can } from './state.js';
 import { api } from './api.js';
 import { showNotification, showLoader, openLookupModal, closeLookupModal, renderTableRows, formatRupiah} from './ui.js';
 import { renderAnalyticsShell, stopRealtimeUpdates } from './analytics.js'
@@ -11,103 +11,6 @@ const debounce = (func, delay = 500) => {
         let timeout;
         return (...args) => { clearTimeout(timeout); timeout = setTimeout(() => func.apply(this, args), delay); };
     };
-
-    function setupPajakInvoiceNav() {
-        let currentDate = new Date();
-    
-        const startDateInput = document.getElementById('start-date');
-        const endDateInput = document.getElementById('end-date');
-        const monthDisplay = document.getElementById('current-month-display');
-        const prevBtn = document.getElementById('prev-month-btn');
-        const nextBtn = document.getElementById('next-month-btn');
-        const filterBtn = document.getElementById('filter-btn');
-    
-        function updateDisplayAndInputs() {
-            const year = currentDate.getFullYear();
-            const month = currentDate.getMonth();
-    
-            monthDisplay.textContent = currentDate.toLocaleDateString('id-ID', { month: 'long', year: 'numeric' });
-    
-            const firstDay = new Date(year, month, 1);
-            const lastDay = new Date(year, month + 1, 0);
-    
-            const formatDate = (date) => {
-                const d = new Date(date);
-                const year = d.getFullYear();
-                const month = String(d.getMonth() + 1).padStart(2, '0');
-                const day = String(d.getDate()).padStart(2, '0');
-                return `${year}-${month}-${day}`;
-            };
-    
-            startDateInput.value = formatDate(firstDay);
-            endDateInput.value = formatDate(lastDay);
-    
-            const today = new Date();
-            today.setHours(0, 0, 0, 0);
-            nextBtn.disabled = (currentDate.getFullYear() >= today.getFullYear() && currentDate.getMonth() >= today.getMonth());
-        }
-    
-        prevBtn.addEventListener('click', () => {
-            currentDate.setMonth(currentDate.getMonth() - 1);
-            updateDisplayAndInputs();
-            if (filterBtn) filterBtn.click();
-        });
-    
-        nextBtn.addEventListener('click', () => {
-            if (nextBtn.disabled) return;
-            currentDate.setMonth(currentDate.getMonth() + 1);
-            updateDisplayAndInputs();
-            if (filterBtn) filterBtn.click();
-        });
-    
-        // Initial setup
-        updateDisplayAndInputs();
-    }
-
-    async function setupPajakInvoiceStoreFilter() {
-        const container = document.getElementById('store-filter-container');
-        if (!container) return;
-
-        try {
-            const result = await api.getPajakInvoiceStores();
-            if (result.status !== 'success') throw new Error(result.message);
-
-            const stores = ['All', ...result.data];
-            let buttonsHTML = stores.map(store => {
-                const isActive = store === selectedStore;
-                const activeClasses = 'bg-indigo-600 text-white border-indigo-600';
-                const inactiveClasses = 'bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-600 border-gray-300 dark:border-gray-600';
-                return `<button data-store="${store}" class="store-filter-btn px-3 py-1.5 text-sm font-medium rounded-md shadow-sm border ${isActive ? activeClasses : inactiveClasses}">${store}</button>`;
-            }).join('');
-
-            container.innerHTML = `<div class="flex flex-wrap justify-center gap-2">${buttonsHTML}</div>`;
-
-            container.addEventListener('click', (e) => {
-                const btn = e.target.closest('.store-filter-btn');
-                if (!btn) return;
-
-                const newStore = btn.dataset.store;
-                setSelectedStore(newStore);
-
-                // Update button styles
-                container.querySelectorAll('.store-filter-btn').forEach(b => {
-                    const isActive = b.dataset.store === newStore;
-                    b.classList.toggle('bg-indigo-600', isActive);
-                    b.classList.toggle('text-white', isActive);
-                    b.classList.toggle('border-indigo-600', isActive);
-                    b.classList.toggle('bg-white', !isActive);
-                    b.classList.toggle('dark:bg-gray-700', !isActive);
-                    b.classList.toggle('text-gray-700', !isActive);
-                    b.classList.toggle('dark:text-gray-300', !isActive);
-                });
-
-                refreshData('pajak-invoice');
-            });
-        } catch (error) {
-            container.innerHTML = `<span class="text-red-500">Gagal memuat daftar toko.</span>`;
-            showNotification(error.message, 'error');
-        }
-    }
 
     export async function loadTableData(type, searchQuery = '', append = false) {
         if (lazyLoadState.isLoading) return;
@@ -140,14 +43,7 @@ const debounce = (func, delay = 500) => {
                     const sortIcon = isCurrentSortCol ? (currentSort.order === 'asc' ? '▲' : '▼') : '';
                     headerHTML += `<th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider cursor-pointer sortable-header" data-column="${col.key}">${col.label} <span class="sort-indicator">${sortIcon}</span></th>`;
                 });
-                let tableHTML;
-                if (type === 'pajak-invoice') {
-                    // Versi dengan scroll horizontal/vertikal dan header sticky untuk halaman pajak
-                    tableHTML = `<div class="responsive-table-container overflow-auto max-h-[65vh] max-w-[92vw] border border-gray-200 dark:border-gray-700 rounded-lg"><table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700"><thead class="bg-gray-50 dark:bg-gray-700 sticky top-0 z-10"><tr>${headerHTML}${!['penjualan', 'penerimaan', 'piutang', 'analytics'].includes(type) ? '<th class="relative px-6 py-3"><span class="sr-only">Actions</span></th>' : ''}</tr></thead><tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700"></tbody></table></div>`;
-                } else {
-                    // Versi original untuk halaman lainnya
-                    tableHTML = `<div class="responsive-table-container"><table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700"><thead class="bg-gray-50 dark:bg-gray-700"><tr>${headerHTML}${!['penjualan', 'penerimaan', 'piutang', 'analytics'].includes(type) ? '<th class="relative px-6 py-3"><span class="sr-only">Actions</span></th>' : ''}</tr></thead><tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700"></tbody></table></div>`;
-                }
+                const tableHTML = `<div class="responsive-table-container"><table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700"><thead class="bg-gray-50 dark:bg-gray-700"><tr>${headerHTML}${!['penjualan', 'penerimaan', 'piutang', 'analytics'].includes(type) ? '<th class="relative px-6 py-3"><span class="sr-only">Actions</span></th>' : ''}</tr></thead><tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700"></tbody></table></div>`;
                 dataContainer.innerHTML = tableHTML;
     
                 dataContainer.querySelectorAll('.sortable-header').forEach(header => {
@@ -204,21 +100,12 @@ const debounce = (func, delay = 500) => {
     export async function renderPage(hash) {
         resetLazyLoadState();
         stopRealtimeUpdates();
-        setSelectedStore('All'); // Reset filter toko saat ganti halaman
         
         const config = pageConfig[hash];
         if (!config) {
             appContent.innerHTML = '<h2>Selamat Datang</h2><p>Pilih menu di samping untuk memulai.</p>';
             pageTitle.textContent = 'Dashboard';
             return;
-        }
-
-        // Set default sorting for the page
-        if (config.type === 'pajak-invoice') {
-            setCurrentSort('InvDate', 'asc');
-        } else {
-            // Reset to global default for other pages
-            setCurrentSort('CreatedDate', 'desc');
         }
 
         pageTitle.textContent = config.title;
@@ -255,46 +142,16 @@ const debounce = (func, delay = 500) => {
         const showAddNewBtn = can('W', config.type) && isLookupPage;
         const addNewBtnHTML = showAddNewBtn ? '<button id="add-new-btn" class="px-4 py-2 bg-indigo-600 text-white rounded-md">Tambah Baru</button>' : '';
 
-        const exportBtnHTML = config.type === 'pajak-invoice' ? '<button id="export-excel-btn" class="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 dark:bg-green-700 dark:hover:bg-green-600 whitespace-nowrap">Export Excel</button>' : '';
-
-
-        let storeFilterHTML = '';
-        if (config.type === 'pajak-invoice') {
-            storeFilterHTML = `<div id="store-filter-container" class="mb-4 text-center"><span class="text-gray-500 dark:text-gray-400">Memuat daftar toko...</span></div>`;
-        }
-
-        let monthNavHTML = '';
-        if (config.type === 'pajak-invoice') {
-            monthNavHTML = `
-                <div class="flex items-center justify-center mb-4">
-                    <button id="prev-month-btn" class="p-2 rounded-md hover:bg-gray-200 dark:hover:bg-gray-700"><svg class="h-6 w-6 text-gray-600 dark:text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" /></svg></button>
-                    <h2 id="current-month-display" class="text-lg font-semibold mx-4 text-center text-gray-800 dark:text-gray-200"></h2>
-                    <button id="next-month-btn" class="p-2 rounded-md hover:bg-gray-200 dark:hover:bg-gray-700 disabled:opacity-50"><svg class="h-6 w-6 text-gray-600 dark:text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" /></svg></button>
-                </div>
-            `;
-        }
-
 
         let filtersHTML = '';
         if (['penjualan', 'penerimaan', 'pajak-invoice'].includes(config.type)) {
-            // Untuk pajak-invoice, filter tanggal dikontrol oleh navigasi chevron,
-            // jadi kita hanya perlu elemen inputnya di DOM (tersembunyi) agar tetap berfungsi.
-            if (config.type === 'pajak-invoice') {
-                filtersHTML = `
-                    <div class="hidden">
-                        <input type="date" id="start-date">
-                        <input type="date" id="end-date">
-                        <button id="filter-btn"></button>
-                    </div>`;
-            } else {
-                filtersHTML = `
-                    <div class="flex flex-wrap items-center gap-4 mb-4">
-                        <input type="date" id="start-date" class="rounded-md border-gray-300 dark:bg-gray-700 dark:border-gray-600 dark:text-white shadow-sm">
-                        <span>s/d</span>
-                        <input type="date" id="end-date" class="rounded-md border-gray-300 dark:bg-gray-700 dark:border-gray-600 dark:text-white shadow-sm">
-                        <button id="filter-btn" class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">Filter</button>
-                    </div>`;
-            }
+            filtersHTML = `
+                <div class="flex flex-wrap items-center gap-4 mb-4">
+                    <input type="date" id="start-date" class="rounded-md border-gray-300 dark:bg-gray-700 dark:border-gray-600 dark:text-white shadow-sm">
+                    <span>s/d</span>
+                    <input type="date" id="end-date" class="rounded-md border-gray-300 dark:bg-gray-700 dark:border-gray-600 dark:text-white shadow-sm">
+                    <button id="filter-btn" class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">Filter</button>
+                </div>`;
         }
         let uploadHTML = '';
         if (config.type === 'packinglist-barcode' && can('W', 'packinglist-barcode')) {
@@ -329,47 +186,24 @@ const debounce = (func, delay = 500) => {
                 <input type="search" id="search-input" placeholder="Cari..." class="w-full sm:w-1/3 rounded-md border-gray-300 dark:bg-gray-700 dark:border-gray-600 dark:text-white shadow-sm">
                 <div class="flex gap-x-2">
                     <button id="refresh-btn" class="px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700 dark:bg-gray-700 dark:hover:bg-gray-600">Refresh</button>
-                    ${exportBtnHTML}
                     ${addNewBtnHTML}
                 </div>
             </div>
-            ${storeFilterHTML}
-            ${monthNavHTML}
             ${filtersHTML}
             <div id="data-container"></div>
             
         </div>
         `;
         
+        await loadTableData(config.type, '', false);
+        
         const debouncedSearch = debounce(() => refreshData(config.type), 500);
         document.getElementById('search-input').addEventListener('input', debouncedSearch);
 
-        document.getElementById('refresh-btn').addEventListener('click', () => refreshData(config.type));
-
-        const exportBtn = document.getElementById('export-excel-btn');
-        if (exportBtn) {
-            exportBtn.addEventListener('click', () => {
-                const startDate = document.getElementById('start-date').value;
-                const endDate = document.getElementById('end-date').value;
-                const searchQuery = document.getElementById('search-input').value;
-                const store = selectedStore;
-
-                const params = new URLSearchParams();
-                if (startDate) params.append('start_date', startDate);
-                if (endDate) params.append('end_date', endDate);
-                if (searchQuery) params.append('search', searchQuery);
-                if (store && store !== 'All') params.append('toko', store);
-
-                window.location.href = `/api/pajak-invoice/export?${params.toString()}`;
-            });
-        }
+        document.getElementById('refresh-btn').addEventListener('click', () => refreshData(config.type));        
         
         if (['penjualan', 'penerimaan', 'pajak-invoice'].includes(config.type)) {
             document.getElementById('filter-btn').addEventListener('click', () => refreshData(config.type));
-            if (config.type === 'pajak-invoice') {
-                setupPajakInvoiceStoreFilter();
-                setupPajakInvoiceNav();
-            }
         }
         
         const addNewBtn = document.getElementById('add-new-btn');
@@ -414,8 +248,6 @@ const debounce = (func, delay = 500) => {
                     }
                 });
             }
-        
-        await loadTableData(config.type, '', false);
     }
     export function renderAddItemForm() {
         appContent.innerHTML = `

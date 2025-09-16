@@ -6,7 +6,7 @@ import requests
 import uuid
 import decimal
 from datetime import datetime, date, timedelta
-from flask import Blueprint, jsonify, request, session
+from flask import Blueprint, jsonify, request, session, send_file
 from functools import wraps
 from app import mysql
 from app.utils import calculate_ean13_checksum
@@ -55,6 +55,7 @@ permission_map = {
     'penerimaan': {'R': 'RTk'},
     'piutang': {'R': 'RTk'},
     'analytics': {'R': 'RA'},
+    'pajak-invoice': {'R': 'RPjk'},
     'factory-analytics': {'R': 'RA'},
     'multipayroll': {'R': 'RA'},
     'payroll-checksum': {'R': 'RA'},
@@ -170,6 +171,75 @@ def get_data(data_type):
         finally:
             if conn_sql:
                 conn_sql.close()
+
+    elif data_type == 'pajak-invoice':
+        conn_sql = get_jbbdata_sql_server_connection()
+        if not conn_sql:
+            return jsonify({"status": "error", "message": "Gagal terhubung ke database JBBData."}), 503
+        
+        try:
+            cursor = conn_sql.cursor()
+            params = []
+            
+            query_base = "FROM dbo.ViewSalInvDetPajakExt"
+            query_fields = "IDNo, InvNo, CONVERT(VARCHAR, InvDate, 105) as InvDate, Toko, Customer, Qty, Up, Amount, Disc, TotalAmount, DppUp, DppDisc, DppAmt, DppNilaiLain, VatAmount, Remark"
+            count_field = "IDNo"
+            
+            valid_sort_columns = ['IDNo', 'InvNo', 'InvDate', 'Toko', 'Customer', 'Qty', 'Up', 'Amount', 'Disc', 'TotalAmount', 'DppUp', 'DppDisc', 'DppAmt', 'DppNilaiLain', 'VatAmount', 'Remark']
+            if sort_by not in valid_sort_columns:
+                sort_by = 'InvDate'
+            if sort_order.upper() not in ['ASC', 'DESC']:
+                sort_order = 'DESC'
+            
+            order_by_clause = f"ORDER BY {sort_by} {sort_order}"
+
+            where_clauses = []
+            
+            if search_query:
+                where_clauses.append("(InvNo LIKE ? OR Toko LIKE ? OR Customer LIKE ?)")
+                search_term = f'%{search_query}%'
+                params.extend([search_term, search_term, search_term])
+            
+            toko = request.args.get('toko')
+            if toko:
+                where_clauses.append("Toko = ?")
+                params.append(toko)
+
+            start_date = request.args.get('start_date')
+            end_date = request.args.get('end_date')
+            if start_date and end_date:
+                where_clauses.append("CAST(InvDate AS DATE) BETWEEN ? AND ?")
+                params.extend([start_date, end_date])
+
+            where_clause_str = " WHERE " + " AND ".join(where_clauses) if where_clauses else ""
+            
+            count_query = f"SELECT COUNT({count_field}) {query_base} {where_clause_str}"
+            cursor.execute(count_query, params)
+            total_records = cursor.fetchone()[0]
+
+            start_row = offset + 1
+            end_row = offset + limit
+            
+            query = f"""
+                WITH NumberedResults AS (
+                    SELECT {query_fields}, ROW_NUMBER() OVER ({order_by_clause}) as row_num
+                    {query_base} {where_clause_str}
+                )
+                SELECT * FROM NumberedResults WHERE row_num BETWEEN ? AND ?;
+            """
+            
+            final_params = params + [start_row, end_row]
+            cursor.execute(query, final_params)
+            
+            columns = [column[0] for column in cursor.description if column[0] != 'row_num']
+            results = [dict(zip(columns, [str(v) if isinstance(v, decimal.Decimal) else v for v in row])) for row in cursor.fetchall()]
+            
+            return jsonify({"status": "success", "data": results, "total_records": total_records})
+
+        except pyodbc.Error as ex:
+            return jsonify({"status": "error", "message": f"Database error: {str(ex)}"}), 500
+        finally:
+            if conn_sql: conn_sql.close()
 
     if sort_order.upper() not in ['ASC', 'DESC']:
         sort_order = 'DESC'
@@ -665,6 +735,113 @@ def add_lookup_item():
         mysql.connection.rollback()
         return jsonify({"status": "error", "message": str(e)}), 500
 
+@api_bp.route('/pajak-invoice/stores', methods=['GET'])
+@login_required
+@permission_required('RPjk')
+def get_pajak_invoice_stores():
+    """Mengambil daftar unik toko dari view pajak invoice."""
+    conn_sql = get_jbbdata_sql_server_connection()
+    if not conn_sql:
+        return jsonify({"status": "error", "message": "Gagal terhubung ke database JBBData."}), 503
+    try:
+        cursor = conn_sql.cursor()
+        query = "SELECT DISTINCT Toko FROM dbo.ViewSalInvDetPajakExt WHERE Toko IS NOT NULL AND Toko <> '' ORDER BY Toko;"
+        cursor.execute(query)
+        stores = [row.Toko for row in cursor.fetchall()]
+        return jsonify({"status": "success", "data": stores})
+    except pyodbc.Error as ex:
+        return jsonify({"status": "error", "message": f"Database error: {str(ex)}"}), 500
+    finally:
+        if conn_sql:
+            conn_sql.close()
+
+@api_bp.route('/pajak-invoice/export', methods=['GET'])
+@login_required
+@permission_required('RPjk')
+def export_pajak_invoice():
+    """Mengekspor data pajak invoice ke file Excel berdasarkan filter."""
+    search_query = request.args.get('search', '')
+    toko = request.args.get('toko')
+    start_date = request.args.get('start_date')
+    end_date = request.args.get('end_date')
+
+    conn_sql = get_jbbdata_sql_server_connection()
+    if not conn_sql:
+        return "Gagal terhubung ke database.", 503
+
+    try:
+        cursor = conn_sql.cursor()
+        params = []
+        
+        query_base = "FROM dbo.ViewSalInvDetPajakExt"
+        query_fields = "InvNo, CONVERT(VARCHAR, InvDate, 105) as InvDate, Toko, Customer, Qty, Up, Amount, Disc, TotalAmount, DppUp, DppDisc, DppAmt, DppNilaiLain, VatAmount, Remark"
+        
+        where_clauses = []
+        if search_query:
+            where_clauses.append("(InvNo LIKE ? OR Toko LIKE ? OR Customer LIKE ?)")
+            search_term = f'%{search_query}%'
+            params.extend([search_term, search_term, search_term])
+        
+        if toko and toko != 'All':
+            where_clauses.append("Toko = ?")
+            params.append(toko)
+
+        if start_date and end_date:
+            where_clauses.append("CAST(InvDate AS DATE) BETWEEN ? AND ?")
+            params.extend([start_date, end_date])
+
+        where_clause_str = " WHERE " + " AND ".join(where_clauses) if where_clauses else ""
+        
+        query = f"SELECT {query_fields} {query_base} {where_clause_str} ORDER BY InvDate DESC, InvNo ASC"
+        cursor.execute(query, params)
+        
+        rows = cursor.fetchall()
+        
+        workbook = openpyxl.Workbook()
+        sheet = workbook.active
+        sheet.title = "Pajak Invoice Penjualan"
+        
+        headers = ['No. Invoice', 'Tgl. Invoice', 'Toko', 'Customer', 'Qty', 'Harga Satuan', 'Jumlah', 'Diskon', 'Total', 'DPP Harga', 'DPP Diskon', 'DPP Jumlah', 'DPP Lain', 'PPN', 'Keterangan']
+        sheet.append(headers)
+        
+        for row in rows:
+            processed_row = [float(item) if isinstance(item, decimal.Decimal) else item for item in row]
+            sheet.append(processed_row)
+
+        # --- Logic to create dynamic filename ---
+        filename_parts = ["Pajak_Invoice_Penjualan"]
+        
+        # Add store suffix
+        if toko and toko != 'All':
+            # Replace spaces with underscores for better compatibility
+            safe_toko_name = toko.replace(' ', '_')
+            filename_parts.append(safe_toko_name)
+
+        # Add month and year suffix
+        if start_date:
+            try:
+                date_obj = datetime.strptime(start_date, '%Y-%m-%d')
+                month_names_id = ["Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "Agustus", "September", "Oktober", "November", "Desember"]
+                month_name = month_names_id[date_obj.month - 1]
+                year = date_obj.year
+                filename_parts.extend([month_name, str(year)])
+            except (ValueError, IndexError):
+                pass # Ignore if date is invalid
+        
+        download_name = "_".join(filename_parts) + ".xlsx"
+        # --- End of logic ---
+
+        mem_file = io.BytesIO()
+        workbook.save(mem_file)
+        mem_file.seek(0)
+        
+        return send_file(mem_file, as_attachment=True, download_name=download_name, mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+
+    except pyodbc.Error as ex:
+        return f"Database error: {str(ex)}", 500
+    finally:
+        if conn_sql:
+            conn_sql.close()
 
 # --- ENDPOINT ANALYTICS DIPERBARUI ---
 # --- ENDPOINT ANALYTICS DIPERBARUI ---
@@ -892,21 +1069,23 @@ def upload_packing_list_csv():
             cursor = conn_sql.cursor()
             inserted_count = 0
             updated_count = 0
+            total_records_received = 0
             # --- PERUBAHAN: Logika UPSERT langsung ke DB ---
             sql_check = "SELECT 1 FROM dbo.ViewBarcodeSystemCMT WHERE Barcode = ?;"
             sql_update = "UPDATE dbo.ViewBarcodeSystemCMT SET Color = ?, Item = ?, Size = ? WHERE Barcode = ?;"
             sql_insert = "INSERT INTO dbo.ViewBarcodeSystemCMT (Barcode, Color, Item, Size) VALUES (?, ?, ?, ?);"
 
-            for index, row in df.iterrows():
+            for row in reader:
+                total_records_received += 1
                 barcode = row.get('Barcode')
                 if not barcode: continue
 
                 cursor.execute(sql_check, barcode)
                 if cursor.fetchone():
-                    cursor.execute(sql_update, row.get('Color'), row.get('Item'), row.get('Size'), barcode)
+                    cursor.execute(sql_update, row.get('Color', ''), row.get('Item', ''), row.get('Size', ''), barcode)
                     updated_count += 1
                 else:
-                    cursor.execute(sql_insert, barcode, row.get('Color'), row.get('Item'), row.get('Size'))
+                    cursor.execute(sql_insert, barcode, row.get('Color', ''), row.get('Item', ''), row.get('Size', ''))
                     inserted_count += 1
             
             conn_sql.commit()
@@ -914,7 +1093,7 @@ def upload_packing_list_csv():
             
             return jsonify({
                 "message": "Data berhasil diproses.",
-                "total_records_received": len(df),
+                "total_records_received": total_records_received,
                 "total_records_inserted": inserted_count,
                 "total_records_updated": updated_count
             }), 200

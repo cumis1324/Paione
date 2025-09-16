@@ -124,6 +124,17 @@ document.addEventListener('DOMContentLoaded', () => {
         tokoDropdownIcon.classList.toggle('rotate-180');
     });
 
+    const pajakDropdownBtn = document.getElementById('pajak-dropdown-btn');
+    const pajakDropdownMenu = document.getElementById('pajak-dropdown-menu');
+    const pajakDropdownIcon = document.getElementById('pajak-dropdown-icon');
+
+    if (pajakDropdownBtn) {
+        pajakDropdownBtn.addEventListener('click', () => {
+            pajakDropdownMenu.classList.toggle('hidden');
+            pajakDropdownIcon.classList.toggle('rotate-180');
+        });
+    }
+
     const packinglistDropdownBtn = document.getElementById('packinglist-dropdown-btn');
     const packinglistDropdownMenu = document.getElementById('packinglist-dropdown-menu');
     const packinglistDropdownIcon = document.getElementById('packinglist-dropdown-icon');
