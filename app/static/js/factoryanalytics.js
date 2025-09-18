@@ -1,7 +1,6 @@
 import { api } from "./api.js";
 import { formatRupiah, showLoader, showNotification, openSalesDetailModal, setSalesDetailModalTitle } from './ui.js';
 import { renderFactoryComparisonChart, renderFactoryTimeSeriesChart, destroyAllFactoryCharts, renderComparisonChart } from "./renderChart.js";
-import { analyticsState } from "./analytics.js";
 const appContent = document.getElementById('app-content');
 
 // State untuk halaman analytics pabrik
@@ -42,8 +41,8 @@ function getPeriodDates(mode, date) {
 // Render shell utama
 export function renderFactoryAnalyticsShell() {
     appContent.innerHTML = `
-        <div class="border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 mb-6 overflow-x-auto">
-            <nav id="factory-analytics-tabs" class="-mb-px flex space-x-8 px-4" aria-label="Tabs">
+        <div class="border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 mb-6">
+            <nav id="factory-analytics-tabs" class="-mb-px flex flex-wrap gap-x-8 gap-y-2 px-4" aria-label="Tabs">
                 <a href="#" data-mode="daily" class="tab-link whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm border-indigo-500 text-indigo-600 dark:text-indigo-400">Harian</a>
                 <a href="#" data-mode="weekly" class="tab-link whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-200 dark:hover:border-gray-600">Mingguan</a>
                 <a href="#" data-mode="monthly" class="tab-link whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-200 dark:hover:border-gray-600">Bulanan</a>
@@ -304,7 +303,9 @@ async function fetchFactoryDataForPeriod(isCustom = false) {
             renderFactoryRecentActivity(result.data);
             renderFactoryComparisonChart(start, end, factoryAnalyticsState.mode);
             if (factoryAnalyticsState.mode !== 'daily') {
-                renderFactoryTimeSeriesChart(start, end, result.data);
+                // Panggil API untuk data time series secara terpisah
+                const timeseriesResult = await api.getFactoryAnalyticsTimeSeries(start, end);
+                if (timeseriesResult.status === 'success') renderFactoryTimeSeriesChart(start, end, timeseriesResult.data);
             }
         } else {
             throw new Error(result.message);

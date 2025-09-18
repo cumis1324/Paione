@@ -248,8 +248,6 @@ export async function renderFactoryComparisonChart(currentStartDate, currentEndD
         const prevData = prevResult.data.total || {};
         const { currentLabel, prevLabel } = getChartLabels(currentStartDate, currentEndDate, prevStartDate, prevEndDate, mode);
         
-        destroyAllFactoryCharts();
-
         factorySalesComparisonChart = renderSingleChart(
             'factorySalesComparisonChart', 'bar', ['Total Penjualan'], `Perbandingan Penjualan`,
             { label: prevLabel, data: [parseFloat(prevData.total_penjualan || 0)] },
@@ -274,21 +272,20 @@ export async function renderFactoryComparisonChart(currentStartDate, currentEndD
         console.error("Gagal membuat grafik perbandingan pabrik:", error);
     }
 }
-export async function renderFactoryTimeSeriesChart(startDate, endDate) {
+export function renderFactoryTimeSeriesChart(startDate, endDate, data) {
     const container = document.getElementById('factory-timeseries-chart-container');
     if (!container) return;
     
     try {
-        const result = await api.getFactoryAnalyticsTimeSeries(startDate, endDate);
-        if (result.status !== 'success') throw new Error(result.message);
-
-        const data = result.data;
-        const labels = data.map(d => new Date(d.tanggal+'T00:00:00').toLocaleDateString('id-ID', {day: 'numeric', month: 'short'}));
+        if (!data || !Array.isArray(data)) {
+            throw new Error("Data tren tidak valid atau tidak tersedia.");
+        }
+        const labels = data.map(d => new Date(d.tanggal + 'T00:00:00').toLocaleDateString('id-ID', { day: 'numeric', month: 'short' }));
         const values = data.map(d => parseFloat(d.total_penjualan));
         
         factoryTimeSeriesChart = renderLineChart('factoryTimeSeriesChart', labels, values, 'Tren Penjualan Pabrik');
 
-    } catch(error) {
+    } catch (error) {
         console.error("Gagal membuat grafik time series pabrik:", error);
         container.innerHTML = `<p class="text-center text-red-500">Gagal memuat data tren.</p>`;
     }

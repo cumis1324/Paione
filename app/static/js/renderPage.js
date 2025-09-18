@@ -1,4 +1,4 @@
-import { resetLazyLoadState, lazyLoadState, currentSort, setCurrentSort, pageConfig, can, setSelectedStore, selectedStore } from './state.js';
+import { resetLazyLoadState, lazyLoadState, currentSort, setCurrentSort, pageConfig, can, setSelectedStore, selectedStore, setSelectedWarehouse, selectedWarehouse, setSelectedItemName, selectedItemName } from './state.js';
 import { api } from './api.js';
 import { showNotification, showLoader, openLookupModal, closeLookupModal, renderTableRows, formatRupiah} from './ui.js';
 import { renderAnalyticsShell, stopRealtimeUpdates } from './analytics.js'
@@ -11,6 +11,57 @@ const debounce = (func, delay = 500) => {
         let timeout;
         return (...args) => { clearTimeout(timeout); timeout = setTimeout(() => func.apply(this, args), delay); };
     };
+
+    function setupSearchableDropdown({ containerId, placeholder, fetchFunction, onSelect, selectedValue, allOptionLabel = 'All' }) {
+        const container = document.getElementById(containerId);
+        if (!container) return;
+
+        container.innerHTML = `
+            <div class="relative">
+                <input type="text" id="${containerId}-input" placeholder="${placeholder}" class="w-full rounded-md border-gray-300 dark:bg-gray-700 dark:border-gray-600 dark:text-white shadow-sm pr-10" autocomplete="off">
+                <div id="${containerId}-dropdown" class="hidden absolute z-20 mt-1 w-full bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-md shadow-lg max-h-60 overflow-y-auto"></div>
+            </div>
+        `;
+
+        const input = document.getElementById(`${containerId}-input`);
+        const dropdown = document.getElementById(`${containerId}-dropdown`);
+        let allItems = [];
+
+        const renderItems = (filter = '') => {
+            const searchTerms = filter.toLowerCase().split(' ').filter(term => term);
+            const filteredItems = allItems.filter(item => {
+                const lowerItem = item.toLowerCase();
+                return searchTerms.every(term => lowerItem.includes(term));
+            });
+            dropdown.innerHTML = filteredItems.map(item =>
+                `<div class="cursor-pointer p-2 text-gray-900 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700" data-value="${item}">${item}</div>`
+            ).join('');
+        };
+
+        fetchFunction()
+            .then(result => {
+                if (result.status !== 'success') throw new Error(result.message);
+                allItems = [allOptionLabel, ...result.data];
+                input.value = selectedValue;
+            })
+            .catch(error => {
+                container.innerHTML = `<span class="text-red-500">Gagal memuat data.</span>`;
+                showNotification(error.message, 'error');
+            });
+
+        input.addEventListener('focus', () => { renderItems(''); dropdown.classList.remove('hidden'); });
+        input.addEventListener('input', () => { renderItems(input.value); dropdown.classList.remove('hidden'); });
+        dropdown.addEventListener('mousedown', (e) => {
+            const target = e.target.closest('[data-value]');
+            if (target) {
+                const value = target.dataset.value;
+                input.value = value;
+                onSelect(value);
+                dropdown.classList.add('hidden');
+            }
+        });
+        document.addEventListener('click', (e) => { if (!container.contains(e.target)) dropdown.classList.add('hidden'); });
+    }
 
     function setupPajakInvoiceNav() {
         let currentDate = new Date();
@@ -109,15 +160,72 @@ const debounce = (func, delay = 500) => {
         }
     }
 
+    async function setupFinishGoodWarehouseFilter() {
+        const allLabel = 'Semua Gudang';
+        setupSearchableDropdown({
+            containerId: 'warehouse-filter-container',
+            placeholder: 'Filter Gudang...',
+            fetchFunction: api.getFinishGoodWarehouses,
+            onSelect: (value) => {
+                setSelectedWarehouse(value === allLabel ? 'All' : value);
+                refreshData('finish-good');
+            },
+            selectedValue: selectedWarehouse === 'All' ? allLabel : selectedWarehouse,
+            allOptionLabel: allLabel
+        });
+    }
+
+    async function setupFinishGoodItemNameFilter() {
+        const allLabel = 'Semua Barang';
+        setupSearchableDropdown({
+            containerId: 'itemname-filter-container',
+            placeholder: 'Filter Nama Barang...',
+            fetchFunction: api.getFinishGoodItemNames,
+            onSelect: (value) => {
+                setSelectedItemName(value === allLabel ? 'All' : value);
+                refreshData('finish-good');
+            },
+            selectedValue: selectedItemName === 'All' ? allLabel : selectedItemName,
+            allOptionLabel: allLabel
+        });
+    }
+
+    function renderSummaryTotals(summary) {
+        const container = document.getElementById('summary-totals-container');
+        if (!container) return;
+    
+        container.innerHTML = `
+            <dl class="grid grid-cols-1 md:grid-cols-3 gap-4 text-center mb-4">
+                <div class="bg-gray-50 dark:bg-gray-700/50 p-4 rounded-lg border border-gray-200 dark:border-gray-700">
+                        <dt class="text-sm font-medium text-gray-500 dark:text-gray-400 truncate">Total Qty</dt>
+                        <dd class="mt-1 text-2xl font-semibold tracking-tight text-gray-900 dark:text-white">${new Intl.NumberFormat('id-ID').format(summary.TotalQty || 0)}</dd>
+                </div>
+                <div class="bg-gray-50 dark:bg-gray-700/50 p-4 rounded-lg border border-gray-200 dark:border-gray-700">
+                    <dt class="text-sm font-medium text-gray-500 dark:text-gray-400 truncate">Total Lusin</dt>
+                    <dd class="mt-1 text-2xl font-semibold tracking-tight text-gray-900 dark:text-white">${new Intl.NumberFormat('id-ID').format(summary.TotalLsn || 0)}</dd>
+                </div>
+                <div class="bg-gray-50 dark:bg-gray-700/50 p-4 rounded-lg border border-gray-200 dark:border-gray-700">
+                    <dt class="text-sm font-medium text-gray-500 dark:text-gray-400 truncate">Total Pcs</dt>
+                    <dd class="mt-1 text-2xl font-semibold tracking-tight text-gray-900 dark:text-white">${new Intl.NumberFormat('id-ID').format(summary.TotalPcs || 0)}</dd>
+                </div>
+               
+            </dl>
+        `;
+    }
+
     export async function loadTableData(type, searchQuery = '', append = false) {
         if (lazyLoadState.isLoading) return;
         lazyLoadState.isLoading = true;
     
         const dataContainer = document.getElementById('data-container');
+        const summaryContainer = document.getElementById('summary-totals-container');
         const loaderId = 'lazy-loader';
         
         if (!append) {
             showLoader(dataContainer);
+            if (summaryContainer) {
+                showLoader(summaryContainer);
+            }
         } else {
             const loaderDiv = document.createElement('div');
             loaderDiv.id = loaderId;
@@ -134,6 +242,14 @@ const debounce = (func, delay = 500) => {
             const config = pageConfig[`#${type}`];
     
             if (!append) {
+                if (summaryContainer) {
+                    if (result.summary) {
+                        renderSummaryTotals(result.summary);
+                    } else {
+                        summaryContainer.innerHTML = ''; // Clear if no summary
+                    }
+                }
+
                 let headerHTML = '';
                 config.columns.forEach(col => {
                     const isCurrentSortCol = currentSort.column.toLowerCase() === col.key.toLowerCase();
@@ -188,7 +304,10 @@ const debounce = (func, delay = 500) => {
             }
     
         } catch (error) {
-            if (!append && dataContainer) dataContainer.innerHTML = `<p class="text-center text-red-500 dark:text-red-400">${error.message}</p>`;
+            if (!append && dataContainer) {
+                dataContainer.innerHTML = `<p class="text-center text-red-500 dark:text-red-400">${error.message}</p>`;
+                if (summaryContainer) summaryContainer.innerHTML = ''; // Clear summary on error
+            }
         } finally {
             lazyLoadState.isLoading = false;
             const loader = document.getElementById(loaderId);
@@ -205,6 +324,8 @@ const debounce = (func, delay = 500) => {
         resetLazyLoadState();
         stopRealtimeUpdates();
         setSelectedStore('All'); // Reset filter toko saat ganti halaman
+        setSelectedItemName('All'); // Reset filter nama barang saat ganti halaman
+        setSelectedWarehouse('All'); // Reset filter gudang saat ganti halaman
         
         const config = pageConfig[hash];
         if (!config) {
@@ -216,14 +337,16 @@ const debounce = (func, delay = 500) => {
         // Set default sorting for the page
         if (config.type === 'pajak-invoice') {
             setCurrentSort('InvDate', 'asc');
+        } else if (config.type === 'finish-good') {
+            setCurrentSort('WareHouse', 'asc');
         } else {
             // Reset to global default for other pages
             setCurrentSort('CreatedDate', 'desc');
         }
 
         pageTitle.textContent = config.title;
-        if (['stock-in', 'stock-out'].includes(config.type)) {
-        appContent.innerHTML = `<div class="p-4 text-center bg-gray-50 dark:bg-gray-800 dark:text-gray-300 rounded-lg">Fungsionalitas untuk <strong class="dark:text-white">${config.title}</strong> sedang dalam pengembangan.</div>`;
+        if (['stock-fabric', 'wip'].includes(config.type)) {
+            appContent.innerHTML = `<div class="p-4 text-center bg-gray-50 dark:bg-gray-800 dark:text-gray-300 rounded-lg">Fungsionalitas untuk <strong class="dark:text-white">${config.title}</strong> sedang dalam pengembangan.</div>`;
         return;
         }
         if (config.type === 'analytics') {
@@ -255,12 +378,32 @@ const debounce = (func, delay = 500) => {
         const showAddNewBtn = can('W', config.type) && isLookupPage;
         const addNewBtnHTML = showAddNewBtn ? '<button id="add-new-btn" class="px-4 py-2 bg-indigo-600 text-white rounded-md">Tambah Baru</button>' : '';
 
-        const exportBtnHTML = config.type === 'pajak-invoice' ? '<button id="export-excel-btn" class="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 dark:bg-green-700 dark:hover:bg-green-600 whitespace-nowrap">Export Excel</button>' : '';
-
+        let exportBtnHTML = '';
+        if (config.type === 'pajak-invoice') {
+            exportBtnHTML = '<button id="export-excel-btn" class="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 dark:bg-green-700 dark:hover:bg-green-600 whitespace-nowrap">Export Excel</button>';
+        } else if (config.type === 'finish-good') {
+            exportBtnHTML = '<button id="export-excel-btn-gudang" class="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 dark:bg-green-700 dark:hover:bg-green-600 whitespace-nowrap">Export Excel</button>';
+        }
 
         let storeFilterHTML = '';
         if (config.type === 'pajak-invoice') {
             storeFilterHTML = `<div id="store-filter-container" class="mb-4 text-center"><span class="text-gray-500 dark:text-gray-400">Memuat daftar toko...</span></div>`;
+        }
+
+        let customFiltersHTML = '';
+        if (config.type === 'finish-good') {
+            customFiltersHTML = `
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                    <div>
+                        <label for="warehouse-filter-container-input" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Filter Gudang</label>
+                        <div id="warehouse-filter-container"><span class="text-gray-500 dark:text-gray-400">Memuat filter gudang...</span></div>
+                    </div>
+                    <div>
+                        <label for="itemname-filter-container-input" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Filter Nama Barang</label>
+                        <div id="itemname-filter-container"><span class="text-gray-500 dark:text-gray-400">Memuat filter barang...</span></div>
+                    </div>
+                </div>
+            `;
         }
 
         let monthNavHTML = '';
@@ -276,25 +419,13 @@ const debounce = (func, delay = 500) => {
 
 
         let filtersHTML = '';
-        if (['penjualan', 'penerimaan', 'pajak-invoice'].includes(config.type)) {
-            // Untuk pajak-invoice, filter tanggal dikontrol oleh navigasi chevron,
-            // jadi kita hanya perlu elemen inputnya di DOM (tersembunyi) agar tetap berfungsi.
-            if (config.type === 'pajak-invoice') {
-                filtersHTML = `
-                    <div class="hidden">
-                        <input type="date" id="start-date">
-                        <input type="date" id="end-date">
-                        <button id="filter-btn"></button>
-                    </div>`;
-            } else {
-                filtersHTML = `
-                    <div class="flex flex-wrap items-center gap-4 mb-4">
-                        <input type="date" id="start-date" class="rounded-md border-gray-300 dark:bg-gray-700 dark:border-gray-600 dark:text-white shadow-sm">
-                        <span>s/d</span>
-                        <input type="date" id="end-date" class="rounded-md border-gray-300 dark:bg-gray-700 dark:border-gray-600 dark:text-white shadow-sm">
-                        <button id="filter-btn" class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">Filter</button>
-                    </div>`;
-            }
+        if (config.type === 'pajak-invoice') {
+            filtersHTML = `
+                <div class="hidden">
+                    <input type="date" id="start-date">
+                    <input type="date" id="end-date">
+                    <button id="filter-btn"></button>
+                </div>`;
         }
         let uploadHTML = '';
         if (config.type === 'packinglist-barcode' && can('W', 'packinglist-barcode')) {
@@ -334,6 +465,8 @@ const debounce = (func, delay = 500) => {
                 </div>
             </div>
             ${storeFilterHTML}
+            ${customFiltersHTML}
+            <div id="summary-totals-container"></div>
             ${monthNavHTML}
             ${filtersHTML}
             <div id="data-container"></div>
@@ -364,14 +497,31 @@ const debounce = (func, delay = 500) => {
             });
         }
         
-        if (['penjualan', 'penerimaan', 'pajak-invoice'].includes(config.type)) {
-            document.getElementById('filter-btn').addEventListener('click', () => refreshData(config.type));
-            if (config.type === 'pajak-invoice') {
-                setupPajakInvoiceStoreFilter();
-                setupPajakInvoiceNav();
-            }
+        const exportGudangBtn = document.getElementById('export-excel-btn-gudang');
+        if (exportGudangBtn) {
+            exportGudangBtn.addEventListener('click', () => {
+                const searchQuery = document.getElementById('search-input').value;
+                
+                const params = new URLSearchParams();
+                if (searchQuery) params.append('search', searchQuery);
+                // These state variables are imported at the top
+                if (selectedWarehouse && selectedWarehouse !== 'All') params.append('warehouse', selectedWarehouse);
+                if (selectedItemName && selectedItemName !== 'All') params.append('itemName', selectedItemName);
+
+                // Redirect to trigger download
+                window.location.href = `/api/gudang/finish-good/export?${params.toString()}`;
+            });
         }
-        
+
+        if (config.type === 'pajak-invoice') {
+            document.getElementById('filter-btn').addEventListener('click', () => refreshData(config.type));
+            setupPajakInvoiceStoreFilter();
+            setupPajakInvoiceNav();
+        }
+        if (config.type === 'finish-good') {
+            setupFinishGoodWarehouseFilter();
+            setupFinishGoodItemNameFilter();
+        }
         const addNewBtn = document.getElementById('add-new-btn');
         if (addNewBtn) addNewBtn.addEventListener('click', () => handleAddNew(config.type));
 
@@ -666,7 +816,13 @@ function setupMultiPayrollEventListeners() {
     loadInitialFileNo();
 
     // Set tanggal hari ini
-    document.getElementById('transfer-date').value = new Date().toISOString().split('T')[0];
+    const today = new Date();
+    const year = today.getFullYear();
+    const month = String(today.getMonth() + 1).padStart(2, '0');
+    const day = String(today.getDate()).padStart(2, '0');
+    const formattedToday = `${year}-${month}-${day}`;
+    const transferDateInput = document.getElementById('transfer-date');
+    if(transferDateInput) transferDateInput.value = formattedToday;
 
     const requiredFields = [ "Credited Account", "Receiver Name", "Amount", "Remark" ];
     const allFields = [ "Transaction ID", "Transfer Type", "Beneficiary ID", "Credited Account", "Receiver Name", "Amount", "Employee ID", "Remark", "Email", "SWIFT", "Cust Type", "Cust Residence" ];

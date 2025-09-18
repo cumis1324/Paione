@@ -62,8 +62,9 @@ permission_map = {
     'packinglist-barcode': {'R': 'RPL', 'W': 'WPL'},
     'packinglist-riwayat': {'R': 'RPL'},
     'gudang': {'R': 'RGudang'},
-    'stock-in': {'R': 'RGudang', 'W': 'WStok'},
-    'stock-out': {'R': 'RGudang', 'W': 'WStok'}
+    'finish-good': {'R': 'RGudang'},
+    'stock-fabric': {'R': 'RGudang'},
+    'wip': {'R': 'RGudang'}
 }
 
 # --- Rute-rute API ---
@@ -171,6 +172,136 @@ def get_data(data_type):
         finally:
             if conn_sql:
                 conn_sql.close()
+
+    elif data_type == 'finish-good':
+        conn_sql = get_jbbdata_sql_server_connection()
+        if not conn_sql:
+            return jsonify({"status": "error", "message": "Gagal terhubung ke database JBBData."}), 503
+        
+        try:
+            cursor = conn_sql.cursor()
+            params = []
+
+            # Define base query and where clauses first, as they are used in multiple places
+            query_base = "FROM dbo.ViewTransInvFGExt"
+            where_clauses = []
+            if search_query:
+                where_clauses.append("(ItemName LIKE ? OR WareHouse LIKE ? OR Size LIKE ?)")
+                search_term = f'%{search_query}%'
+                params.extend([search_term, search_term, search_term])
+
+            warehouse = request.args.get('warehouse')
+            if warehouse and warehouse != 'All':
+                where_clauses.append("WareHouse = ?")
+                params.append(warehouse)
+            
+            item_name = request.args.get('itemName')
+            if item_name and item_name != 'All':
+                where_clauses.append("ItemName = ?")
+                params.append(item_name)
+
+            start_date = request.args.get('start_date')
+            end_date = request.args.get('end_date')
+            if start_date and end_date:
+                where_clauses.append("CAST(DateTr AS DATE) BETWEEN ? AND ?")
+                params.extend([start_date, end_date])
+
+            where_clause_str = " WHERE " + " AND ".join(where_clauses) if where_clauses else ""
+
+            # Grouping clause
+            group_by_clause = "GROUP BY ItemName, Size, WareHouse, Unit"
+
+            # Count query needs to count the groups
+            count_query = f"SELECT COUNT(*) FROM (SELECT 1 as C {query_base} {where_clause_str} {group_by_clause}) as grouped_data"
+            cursor.execute(count_query, params)
+            total_records = cursor.fetchone()[0]
+
+            # Summary query for grand totals
+            summary_query = f"SELECT SUM(Qty) as TotalQty, SUM(Lsn) as TotalLsn, SUM(Pcs) as TotalPcs {query_base} {where_clause_str}"
+            cursor.execute(summary_query, params)
+            summary_result = cursor.fetchone()
+            summary_data = {
+                "TotalQty": summary_result.TotalQty or 0,
+                "TotalLsn": summary_result.TotalLsn or 0,
+                "TotalPcs": summary_result.TotalPcs or 0,
+            }
+
+            # Main data query with grouping, aggregation, and pagination
+            valid_sort_columns = ['ItemName', 'Size', 'WareHouse', 'Qty', 'Unit', 'Lsn', 'Pcs']
+            if sort_by not in valid_sort_columns:
+                sort_by = 'WareHouse' # Default sort column
+            
+            if sort_order.upper() not in ['ASC', 'DESC']:
+                sort_order = 'ASC' # Default sort order for the default column
+
+            # Build the ORDER BY clause
+            # If the sort is the default (by Warehouse), apply the special multi-level sort.
+            if sort_by == 'WareHouse':
+                order_by_clause = f"""
+                    ORDER BY 
+                        WareHouse {sort_order}, 
+                        ItemName ASC, 
+                        CASE Size 
+                            WHEN 'M' THEN 1 
+                            WHEN 'L' THEN 2 
+                            WHEN 'XL' THEN 3 
+                            ELSE 4 
+                        END ASC,
+                        Size ASC
+                """
+            # If user sorts by Size, use the custom logic but make it primary
+            elif sort_by == 'Size':
+                 order_by_clause = f"""
+                    ORDER BY 
+                        CASE Size 
+                            WHEN 'M' THEN 1 
+                            WHEN 'L' THEN 2 
+                            WHEN 'XL' THEN 3 
+                            ELSE 4 
+                        END {sort_order},
+                        Size {sort_order}
+                """
+            # For other columns, use a simple sort
+            else:
+                order_by_column = sort_by
+                if sort_by == 'Qty':
+                    order_by_column = 'TotalQty'
+                elif sort_by == 'Lsn':
+                    order_by_column = 'TotalLsn'
+                elif sort_by == 'Pcs':
+                    order_by_column = 'TotalPcs'
+                order_by_clause = f"ORDER BY {order_by_column} {sort_order}"
+
+            start_row, end_row = offset + 1, offset + limit
+            query = f"""
+                WITH AggregatedResults AS (
+                    SELECT
+                        ItemName, Size, WareHouse, Unit,
+                        SUM(Qty) as TotalQty,
+                        SUM(Lsn) as TotalLsn,
+                        SUM(Pcs) as TotalPcs
+                    {query_base}
+                    {where_clause_str}
+                    {group_by_clause}
+                ),
+                NumberedResults AS (
+                    SELECT
+                        ItemName, Size, WareHouse, Unit, TotalQty, TotalLsn, TotalPcs,
+                        ROW_NUMBER() OVER ({order_by_clause}) as row_num
+                    FROM AggregatedResults
+                )
+                SELECT ItemName, Size, WareHouse, Unit, TotalQty as Qty, TotalLsn as Lsn, TotalPcs as Pcs
+                FROM NumberedResults
+                WHERE row_num BETWEEN ? AND ?;"""
+            cursor.execute(query, params + [start_row, end_row])
+            
+            columns = [column[0] for column in cursor.description if column[0] != 'row_num']
+            results = [dict(zip(columns, [str(v) if isinstance(v, decimal.Decimal) else v for v in row])) for row in cursor.fetchall()]
+            return jsonify({"status": "success", "data": results, "total_records": total_records, "summary": summary_data})
+        except pyodbc.Error as ex:
+            return jsonify({"status": "error", "message": f"Database error: {str(ex)}"}), 500
+        finally:
+            if conn_sql: conn_sql.close()
 
     elif data_type == 'pajak-invoice':
         conn_sql = get_jbbdata_sql_server_connection()
@@ -754,6 +885,135 @@ def get_pajak_invoice_stores():
     finally:
         if conn_sql:
             conn_sql.close()
+
+@api_bp.route('/gudang/itemnames', methods=['GET'])
+@login_required
+@permission_required('RGudang')
+def get_gudang_itemnames():
+    """Mengambil daftar unik nama barang dari view finish good."""
+    conn_sql = get_jbbdata_sql_server_connection()
+    if not conn_sql:
+        return jsonify({"status": "error", "message": "Gagal terhubung ke database JBBData."}), 503
+    try:
+        cursor = conn_sql.cursor()
+        query = "SELECT DISTINCT ItemName FROM dbo.ViewTransInvFGExt WHERE ItemName IS NOT NULL AND ItemName <> '' ORDER BY ItemName;"
+        cursor.execute(query)
+        item_names = [row.ItemName for row in cursor.fetchall()]
+        return jsonify({"status": "success", "data": item_names})
+    except pyodbc.Error as ex:
+        return jsonify({"status": "error", "message": f"Database error: {str(ex)}"}), 500
+    finally:
+        if conn_sql: conn_sql.close()
+
+@api_bp.route('/gudang/warehouses', methods=['GET'])
+@login_required
+@permission_required('RGudang')
+def get_gudang_warehouses():
+    """Mengambil daftar unik gudang dari view finish good."""
+    conn_sql = get_jbbdata_sql_server_connection()
+    if not conn_sql:
+        return jsonify({"status": "error", "message": "Gagal terhubung ke database JBBData."}), 503
+    try:
+        cursor = conn_sql.cursor()
+        query = "SELECT DISTINCT WareHouse FROM dbo.ViewTransInvFGExt WHERE WareHouse IS NOT NULL AND WareHouse <> '' ORDER BY WareHouse;"
+        cursor.execute(query)
+        warehouses = [row.WareHouse for row in cursor.fetchall()]
+        return jsonify({"status": "success", "data": warehouses})
+    except pyodbc.Error as ex:
+        return jsonify({"status": "error", "message": f"Database error: {str(ex)}"}), 500
+    finally:
+        if conn_sql: conn_sql.close()
+
+@api_bp.route('/gudang/finish-good/export', methods=['GET'])
+@login_required
+@permission_required('RGudang')
+def export_finish_good():
+    """Mengekspor data stok finish good ke file Excel berdasarkan filter."""
+    search_query = request.args.get('search', '')
+    warehouse = request.args.get('warehouse')
+    item_name = request.args.get('itemName')
+
+    conn_sql = get_jbbdata_sql_server_connection()
+    if not conn_sql:
+        return "Gagal terhubung ke database.", 503
+
+    try:
+        cursor = conn_sql.cursor()
+        params = []
+
+        query_base = "FROM dbo.ViewTransInvFGExt"
+        where_clauses = []
+        if search_query:
+            where_clauses.append("(ItemName LIKE ? OR WareHouse LIKE ? OR Size LIKE ?)")
+            search_term = f'%{search_query}%'
+            params.extend([search_term, search_term, search_term])
+
+        if warehouse and warehouse != 'All':
+            where_clauses.append("WareHouse = ?")
+            params.append(warehouse)
+        
+        if item_name and item_name != 'All':
+            where_clauses.append("ItemName = ?")
+            params.append(item_name)
+        
+        where_clause_str = " WHERE " + " AND ".join(where_clauses) if where_clauses else ""
+        group_by_clause = "GROUP BY ItemName, Size, WareHouse, Unit"
+
+        query = f"""
+            SELECT
+                ItemName, Size, WareHouse, Unit,
+                SUM(Lsn) as Lsn, 
+                SUM(Pcs) as Pcs,
+                SUM(Qty) as Qty
+            {query_base}
+            {where_clause_str}
+            {group_by_clause}
+            ORDER BY WareHouse ASC, ItemName ASC, 
+                CASE Size 
+                    WHEN 'M' THEN 1
+                    WHEN 'L' THEN 2
+                    WHEN 'XL' THEN 3
+                    ELSE 4
+                END ASC, Size ASC
+        """
+        cursor.execute(query, params)
+        rows = cursor.fetchall()
+
+        workbook = openpyxl.Workbook()
+        sheet = workbook.active
+        sheet.title = "Stok Finish Good"
+        
+        headers = ['Gudang', 'Nama Barang', 'Ukuran', 'Total Qty', 'Unit', 'Lsn', 'Pcs']
+        sheet.append(headers)
+        
+        for row in rows:
+            processed_row = [row.WareHouse, row.ItemName, row.Size, row.Qty, row.Unit, row.Lsn, row.Pcs]
+            sheet.append([float(item) if isinstance(item, decimal.Decimal) else item for item in processed_row])
+
+        mem_file = io.BytesIO()
+        workbook.save(mem_file)
+        mem_file.seek(0)
+
+        # --- Logic to create dynamic filename ---
+        filename_parts = ["Stok_Finish_Good"]
+
+        if warehouse and warehouse != 'All':
+            safe_warehouse_name = warehouse.replace(' ', '_').replace('/', '-')
+            filename_parts.append(safe_warehouse_name)
+
+        if item_name and item_name != 'All':
+            safe_item_name = item_name.replace(' ', '_').replace('/', '-')
+            filename_parts.append(safe_item_name)
+
+        filename_parts.append(datetime.now().strftime('%Y%m%d'))
+        download_name = "_".join(filename_parts) + ".xlsx"
+
+        return send_file(mem_file, as_attachment=True, download_name=download_name, mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+
+    except pyodbc.Error as ex:
+        return f"Database error: {str(ex)}", 500
+    finally:
+        if conn_sql: conn_sql.close()
 
 @api_bp.route('/pajak-invoice/export', methods=['GET'])
 @login_required

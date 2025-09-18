@@ -8,6 +8,8 @@ export let lazyLoadState = {
     observer: null
 };
 export let selectedStore = 'All';
+export let selectedItemName = 'All';
+export let selectedWarehouse = 'All';
 
 export const ITEMS_PER_PAGE = 50;
 
@@ -16,8 +18,21 @@ export const pageConfig = {
     '#factory-analytics': { title: 'Penjualan Pabrik', type: 'factory-analytics' },
     '#multipayroll': { title: 'Multi Payroll Converter', type: 'multipayroll' },
     '#payroll-checksum': { title: 'Buat Checksum Payroll', type: 'payroll-checksum' },
-    '#stock-in': { title: 'Stock In', type: 'stock-in', columns: [] },
-    '#stock-out': { title: 'Stock Out', type: 'stock-out', columns: [] },
+    '#finish-good': { 
+        title: 'Gudang - Finish Good', 
+        type: 'finish-good', 
+        columns: [
+            { key: 'WareHouse', label: 'Gudang' },
+            { key: 'ItemName', label: 'Nama Barang' },
+            { key: 'Size', label: 'Ukuran' },
+            { key: 'Qty', label: 'Total Qty' },
+            { key: 'Unit', label: 'Unit' },
+            { key: 'Lsn', label: 'Lsn' },
+            { key: 'Pcs', label: 'Pcs' }
+            ] 
+    },
+    '#stock-fabric': { title: 'Gudang - Stock Fabric', type: 'stock-fabric', columns: [] },
+    '#wip': { title: 'Gudang - Work In Progress', type: 'wip', columns: [] },
     '#add-item': { title: 'Tambah Barang Baru', type: 'add-item' },
     '#packinglist-barcode': {
         title: 'Packing List - Barcode CMT',
@@ -124,8 +139,9 @@ export const permissionMap = {
     'brands': {'R': 'RB', 'W': 'WB', 'D': 'DB'}, 
     'models': {'R': 'RM', 'W': 'WM', 'D': 'DM'},
     'gudang': {'R': 'RGudang'},
-    'stock-in': {'R': 'RGudang', 'W': 'WStok'},
-    'stock-out': {'R': 'RGudang', 'W': 'WStok'}
+    'finish-good': {'R': 'RGudang'},
+    'stock-fabric': {'R': 'RGudang'},
+    'wip': {'R': 'RGudang'}
 };
 
 export function setUserPermissions(permissions) {
@@ -134,6 +150,14 @@ export function setUserPermissions(permissions) {
 
 export function setSelectedStore(store) {
     selectedStore = store;
+}
+
+export function setSelectedWarehouse(warehouse) {
+    selectedWarehouse = warehouse;
+}
+
+export function setSelectedItemName(itemName) {
+    selectedItemName = itemName;
 }
 
 export function resetLazyLoadState() {

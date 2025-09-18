@@ -37,15 +37,14 @@ def login():
                 if user['UserName'] == 'superadmin':
                     session['permissions'] = [
                         'SA', 'RI', 'WI', 'DI', 'PB', 'RM', 'WM', 'DM', 
-                        'RSz', 'WSz', 'DSz', 'RB', 'WB', 'DB', 'WNB', 
-                        'RP', 'RPe', 'RPi', 'RA', 'RTk', 'RPL', 'WPL', 
-                        'RGudang', 'WStok', 'WStokIn', 'WStokOut', 'RPjk',
+                        'RSz', 'WSz', 'DSz', 'RB', 'WB', 'DB', 'WNB', 'RP', 'RPe', 'RPi', 
+                        'RA', 'RTk', 'RPL', 'WPL', 'RGudang', 'RPjk',
                     ]
                 elif user['UserName'] == 'jesica303':
                     session['permissions'] = [
                         'SA', 'RI', 'WI', 'DI', 'PB', 'RM', 'WM', 'DM', 
-                        'RSz', 'WSz', 'DSz', 'RB', 'WB', 'DB', 'WNB', 
-                        'RP', 'RPe', 'RPi', 'RA', 'RTk',
+                        'RSz', 'WSz', 'DSz', 'RB', 'WB', 'DB', 'WNB', 'RP', 'RPe', 'RPi', 
+                        'RA', 'RTk', 'RPL', 'WPL', 'RGudang', 'RPjk',
                     ]
                 else:
                     permissions_str = user.get('Permission', '')

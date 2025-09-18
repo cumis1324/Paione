@@ -1,8 +1,8 @@
-import { lazyLoadState, ITEMS_PER_PAGE, currentSort, getClientInfo, selectedStore } from './state.js';
+import { lazyLoadState, ITEMS_PER_PAGE, currentSort, getClientInfo, selectedStore, selectedWarehouse, selectedItemName } from './state.js';
 
 async function fetchData(type, searchQuery = '') {
     let apiUrl = `/api/data/${type}?search=${searchQuery}&sort_by=${currentSort.column}&sort_order=${currentSort.order}&page=${lazyLoadState.currentPage}&limit=${ITEMS_PER_PAGE}`;
-    if (['penjualan', 'penerimaan', 'pajak-invoice'].includes(type)) {
+    if (['pajak-invoice'].includes(type)) {
         const startDate = document.getElementById('start-date').value;
         const endDate = document.getElementById('end-date').value;
         if (startDate && endDate) {
@@ -11,6 +11,14 @@ async function fetchData(type, searchQuery = '') {
     }
     if (type === 'pajak-invoice' && selectedStore !== 'All') {
         apiUrl += `&toko=${encodeURIComponent(selectedStore)}`;
+    }
+    if (type === 'finish-good') {
+        if (selectedWarehouse !== 'All') {
+            apiUrl += `&warehouse=${encodeURIComponent(selectedWarehouse)}`;
+        }
+        if (selectedItemName !== 'All') {
+            apiUrl += `&itemName=${encodeURIComponent(selectedItemName)}`;
+        }
     }
     const response = await fetch(apiUrl);
     return await response.json();
@@ -162,6 +170,16 @@ async function getPajakInvoiceStores() {
     const response = await fetch('/api/pajak-invoice/stores');
     return await response.json();
 }
+
+async function getFinishGoodWarehouses() {
+    const response = await fetch('/api/gudang/warehouses');
+    return await response.json();
+}
+
+async function getFinishGoodItemNames() {
+    const response = await fetch('/api/gudang/itemnames');
+    return await response.json();
+}
 export const api = {
     fetchData,
     getFormData,
@@ -188,5 +206,7 @@ export const api = {
     getFactoryAnalyticsTimeSeries,
     getFactorySalesDetail,
     getLookupItemDetails,
-    getPajakInvoiceStores
+    getPajakInvoiceStores,
+    getFinishGoodWarehouses,
+    getFinishGoodItemNames
 };
